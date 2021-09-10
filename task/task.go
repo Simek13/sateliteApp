@@ -1,9 +1,9 @@
 package main
 
 import (
-	"database/sql"
 	"fmt"
 	"satelites/csvreader"
+	"satelites/database"
 	"satelites/math"
 	"satelites/sort"
 	"strconv"
@@ -267,34 +267,24 @@ func main() {
 	// store data to db
 
 	// create db
-	/* db, err := database.Create("satelites")
+	db, err := database.Create("satelites")
 	if err != nil {
 		panic(err)
-	} */
+	}
 
 	// open database
-	db, err := sql.Open("mysql", "root:emis@tcp(127.0.0.1:3306)/satelites")
+	/* db, err := sql.Open("mysql", "root:emis@tcp(127.0.0.1:3306)/satelites")
 
 	if err != nil {
 		panic(err)
 	}
 
-	// defer db.Close()
+	fmt.Println("Successfully Connected to MySQL database") */
 
-	fmt.Println("Successfully Connected to MySQL database")
-
-	_, err = db.Exec("CREATE TABLE satelites ( id int, name varchar(32))")
+	//create tables
+	err = database.CreateTables(db)
 	if err != nil {
-		//panic(err)
-	}
-
-	_, err = db.Exec("CREATE TABLE measurements ( filename varchar(32), idSat int, timestamp varchar(32), ionoIndex float, ndviIndex float, radiationIndex float, specificMeasurement varchar(32))")
-	if err != nil {
-		//panic(err)
-	}
-	_, err = db.Exec("CREATE TABLE computationResults ( idSat int, duration varchar(32), maxIono float, minIono float, avgIono float, maxNdvi float, minNdvi float, avgNdvi float, maxRad float, minRad float, avgRad float, maxSpec float, minSpec float, avgSpec float)")
-	if err != nil {
-		//panic(err)
+		panic(err)
 	}
 
 	dialect := goqu.Dialect("mysql")
