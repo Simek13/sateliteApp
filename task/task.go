@@ -1,13 +1,19 @@
 package main
 
 import (
+	"database/sql"
 	"fmt"
-	"os"
 	"satelites/csvreader"
 	"satelites/math"
 	"satelites/sort"
 	"strconv"
+	"strings"
 	"time"
+
+	"github.com/doug-martin/goqu/v9"
+
+	_ "github.com/doug-martin/goqu/v9/dialect/mysql"
+	_ "github.com/go-sql-driver/mysql"
 )
 
 type Satelite interface {
@@ -22,11 +28,16 @@ type BasicSatelite struct {
 	ionoIndexes      []float64
 	ndviIndexes      []float64
 	radiationIndexes []float64
+	duration         time.Duration
+	ionoCalc         []float64
+	ndviCalc         []float64
+	radiationCalc    []float64
 }
 
 type EaSatelite struct {
-	sat       *BasicSatelite
-	altitudes []float64
+	sat           *BasicSatelite
+	altitudes     []float64
+	altitudesCalc []float64
 }
 
 type VcSatelite struct {
@@ -35,14 +46,16 @@ type VcSatelite struct {
 }
 
 type SsSatelite struct {
-	sat           *BasicSatelite
-	seaSalinities []float64
+	sat            *BasicSatelite
+	seaSalinities  []float64
+	salinitiesCalc []float64
 }
 
 func (sat *BasicSatelite) measurementTime() time.Duration {
 	minD := math.MinDate(sat.timestamps)
 	maxD := math.MaxDate(sat.timestamps)
 	timeDiff := maxD.Sub(minD)
+	sat.duration = timeDiff
 	return timeDiff
 }
 
@@ -51,19 +64,19 @@ func (sat *BasicSatelite) compute() ([]float64, []float64, []float64, []float64)
 	min := math.Min(values)
 	max := math.Max(values)
 	avg := math.Avg(values)
-	ionoCalc := [3]float64{min, max, avg}
+	sat.ionoCalc = []float64{min, max, avg}
 	values = sat.ndviIndexes
 	min = math.Min(values)
 	max = math.Max(values)
 	avg = math.Avg(values)
-	ndviCalc := [3]float64{min, max, avg}
+	sat.ndviCalc = []float64{min, max, avg}
 	values = sat.radiationIndexes
 	min = math.Min(values)
 	max = math.Max(values)
 	avg = math.Avg(values)
-	radiationCalc := [3]float64{min, max, avg}
+	sat.radiationCalc = []float64{min, max, avg}
 
-	return ionoCalc[:], ndviCalc[:], radiationCalc[:], nil
+	return sat.ionoCalc[:], sat.ndviCalc[:], sat.radiationCalc[:], nil
 
 }
 
@@ -77,8 +90,8 @@ func (eaSat *EaSatelite) compute() ([]float64, []float64, []float64, []float64) 
 	min := math.Min(values)
 	max := math.Max(values)
 	avg := math.Avg(values)
-	altitudesCalc := [3]float64{min, max, avg}
-	return ionoCalc, ndviCalc, radiationCalc, altitudesCalc[:]
+	eaSat.altitudesCalc = []float64{min, max, avg}
+	return ionoCalc, ndviCalc, radiationCalc, eaSat.altitudesCalc[:]
 }
 
 func (eaSat *EaSatelite) getSatelite() *BasicSatelite {
@@ -108,8 +121,8 @@ func (ssSat *SsSatelite) compute() ([]float64, []float64, []float64, []float64) 
 	min := math.Min(values)
 	max := math.Max(values)
 	avg := math.Avg(values)
-	salinitiesCalc := [3]float64{min, max, avg}
-	return ionoCalc, ndviCalc, radiationCalc, salinitiesCalc[:]
+	ssSat.salinitiesCalc = []float64{min, max, avg}
+	return ionoCalc, ndviCalc, radiationCalc, ssSat.salinitiesCalc[:]
 }
 
 func (ssSat *SsSatelite) getSatelite() *BasicSatelite {
@@ -118,6 +131,8 @@ func (ssSat *SsSatelite) getSatelite() *BasicSatelite {
 
 func main() {
 	url := "https://raw.githubusercontent.com/sea43d/PythonEvaluation/master/satDataCSV2.csv"
+	split := strings.Split(url, "/")
+	filename := split[len(split)-1]
 	data, err := csvreader.ReadCsvFromUrl(url)
 	if err != nil {
 		panic(err)
@@ -157,8 +172,7 @@ func main() {
 		layout := "01-02-2006 15:04"
 		tm, err := time.Parse(layout, row[1])
 		if err != nil {
-			fmt.Println(err)
-			os.Exit(1)
+			panic(err)
 		}
 
 		satelite := satelites[satId]
@@ -249,5 +263,111 @@ func main() {
 	for _, ss := range sort.Sort(salAvg) {
 		fmt.Println(ss)
 	}
+
+	// store data to db
+
+	// create db
+	/* db, err := database.Create("satelites")
+	if err != nil {
+		panic(err)
+	} */
+
+	// open database
+	db, err := sql.Open("mysql", "root:emis@tcp(127.0.0.1:3306)/satelites")
+
+	if err != nil {
+		panic(err)
+	}
+
+	// defer db.Close()
+
+	fmt.Println("Successfully Connected to MySQL database")
+
+	_, err = db.Exec("CREATE TABLE satelites ( id int, name varchar(32))")
+	if err != nil {
+		//panic(err)
+	}
+
+	_, err = db.Exec("CREATE TABLE measurements ( filename varchar(32), idSat int, timestamp varchar(32), ionoIndex float, ndviIndex float, radiationIndex float, specificMeasurement varchar(32))")
+	if err != nil {
+		//panic(err)
+	}
+	_, err = db.Exec("CREATE TABLE computationResults ( idSat int, duration varchar(32), maxIono float, minIono float, avgIono float, maxNdvi float, minNdvi float, avgNdvi float, maxRad float, minRad float, avgRad float, maxSpec float, minSpec float, avgSpec float)")
+	if err != nil {
+		//panic(err)
+	}
+
+	dialect := goqu.Dialect("mysql")
+
+	db_satelites := make(map[string]int)
+	i := 1
+	for id := range satelites {
+		db_satelites[id] = i
+		ds := dialect.Insert("satelites").Cols("id", "name").Vals(goqu.Vals{i, id})
+		sql, _, _ := ds.ToSQL()
+
+		_, err = db.Exec(sql)
+
+		if err != nil {
+			panic(err)
+		}
+		i++
+	}
+
+	for _, row := range data[1:] {
+		ionoIndex, err := strconv.ParseFloat(row[2], 64)
+		if err != nil {
+			panic(err)
+		}
+		ndviIndex, err := strconv.ParseFloat(row[3], 64)
+		if err != nil {
+			panic(err)
+		}
+		radiationIndex, err := strconv.ParseFloat(row[4], 64)
+		if err != nil {
+			panic(err)
+		}
+
+		ds := dialect.Insert("measurements").
+			Cols("filename", "idSat", "timestamp", "ionoIndex", "ndviIndex", "radiationIndex", "specificMeasurement").
+			Vals(goqu.Vals{filename, db_satelites[row[0]], row[1], ionoIndex, ndviIndex, radiationIndex, row[5]})
+
+		sql, _, _ := ds.ToSQL()
+
+		_, err = db.Exec(sql)
+
+		if err != nil {
+			panic(err)
+		}
+	}
+
+	for id, sat := range satelites {
+		bSat := sat.getSatelite()
+		var ds *goqu.InsertDataset
+		switch sat.(type) {
+		case *EaSatelite:
+			ds = dialect.Insert("computationResults").
+				Cols("idSat", "duration", "maxIono", "minIono", "avgIono", "maxNdvi", "minNdvi", "avgNdvi", "maxRad", "minRad", "avgRad", "maxSpec", "minSpec", "avgSpec").
+				Vals(goqu.Vals{db_satelites[id], fmt.Sprint(bSat.duration), bSat.ionoCalc[0], bSat.ionoCalc[1], bSat.ionoCalc[2], bSat.ndviCalc[0], bSat.ndviCalc[1], bSat.ndviCalc[2], bSat.radiationCalc[0], bSat.radiationCalc[1], bSat.radiationCalc[2], sat.(*EaSatelite).altitudesCalc[0], sat.(*EaSatelite).altitudesCalc[1], sat.(*EaSatelite).altitudesCalc[2]})
+		case *SsSatelite:
+			ds = dialect.Insert("computationResults").
+				Cols("idSat", "duration", "maxIono", "minIono", "avgIono", "maxNdvi", "minNdvi", "avgNdvi", "maxRad", "minRad", "avgRad", "maxSpec", "minSpec", "avgSpec").
+				Vals(goqu.Vals{db_satelites[id], fmt.Sprint(bSat.duration), bSat.ionoCalc[0], bSat.ionoCalc[1], bSat.ionoCalc[2], bSat.ndviCalc[0], bSat.ndviCalc[1], bSat.ndviCalc[2], bSat.radiationCalc[0], bSat.radiationCalc[1], bSat.radiationCalc[2], sat.(*SsSatelite).salinitiesCalc[0], sat.(*SsSatelite).salinitiesCalc[1], sat.(*SsSatelite).salinitiesCalc[2]})
+		case *VcSatelite:
+			ds = dialect.Insert("computationResults").
+				Cols("idSat", "duration", "maxIono", "minIono", "avgIono", "maxNdvi", "minNdvi", "avgNdvi", "maxRad", "minRad", "avgRad", "maxSpec", "minSpec", "avgSpec").
+				Vals(goqu.Vals{db_satelites[id], fmt.Sprint(bSat.duration), bSat.ionoCalc[0], bSat.ionoCalc[1], bSat.ionoCalc[2], bSat.ndviCalc[0], bSat.ndviCalc[1], bSat.ndviCalc[2], bSat.radiationCalc[0], bSat.radiationCalc[1], bSat.radiationCalc[2], 0, 0, 0})
+		}
+
+		sql, _, _ := ds.ToSQL()
+
+		_, err = db.Exec(sql)
+
+		if err != nil {
+			panic(err)
+		}
+	}
+
+	db.Close()
 
 }
