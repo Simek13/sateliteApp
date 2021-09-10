@@ -1,4 +1,4 @@
-module satelites
+module sateliteApp
 
 go 1.17
 
