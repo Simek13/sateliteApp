@@ -224,36 +224,47 @@ func main() {
 	dbUrl := dbBaseUrl + cfg.dbName
 	db, err := sql.Open(cfg.dbType, dbUrl)
 
+	defer db.Close()
+
 	if err != nil {
 		panic(err)
 	}
 
 	fmt.Println("Successfully Connected to MySQL database")
 
-	//create tables
-	/* err = database.CreateTables(db)
-	if err != nil {
-		panic(err)
-	} */
-
 	dialect := goqu.Dialect(cfg.dbType)
 
-	db_satelites := make(map[string]int)
-	i := 1
-	for id := range sats {
-		db_satelites[id] = i
-		ds := dialect.Insert("satelites").Cols("id", "name").Vals(goqu.Vals{i, id})
+	for name := range sats {
+		ds := dialect.Insert("satelites").Cols("name").Vals(goqu.Vals{name})
 		sql, _, _ := ds.ToSQL()
 
 		_, err = db.Exec(sql)
 
 		if err != nil {
-			panic(err)
+			// panic(err)
 		}
-		i++
 	}
 
 	for _, row := range data[1:] {
+
+		sql, _, _ := dialect.From("satelites").Select("id").Where(goqu.C("name").Eq(row[0])).ToSQL()
+		var idSat int
+		rows, err := db.Query(sql)
+		if err != nil {
+			panic(err)
+		}
+		defer rows.Close()
+		for rows.Next() {
+			err := rows.Scan(&idSat)
+			if err != nil {
+				panic(err)
+			}
+		}
+		err = rows.Err()
+		if err != nil {
+			panic(err)
+		}
+
 		ionoIndex, err := strconv.ParseFloat(row[2], 64)
 		if err != nil {
 			panic(err)
@@ -269,44 +280,59 @@ func main() {
 
 		ds := dialect.Insert("measurements").
 			Cols("filename", "idSat", "timestamp", "ionoIndex", "ndviIndex", "radiationIndex", "specificMeasurement").
-			Vals(goqu.Vals{filename, db_satelites[row[0]], row[1], ionoIndex, ndviIndex, radiationIndex, row[5]})
+			Vals(goqu.Vals{filename, idSat, row[1], ionoIndex, ndviIndex, radiationIndex, row[5]})
 
-		sql, _, _ := ds.ToSQL()
+		sql, _, _ = ds.ToSQL()
 
 		_, err = db.Exec(sql)
 
 		if err != nil {
-			panic(err)
+			// panic(err)
 		}
 	}
 
-	for id, sat := range sats {
+	for name, sat := range sats {
+		sql, _, _ := dialect.From("satelites").Select("id").Where(goqu.C("name").Eq(name)).ToSQL()
+		var idSat int
+		rows, err := db.Query(sql)
+		if err != nil {
+			panic(err)
+		}
+		defer rows.Close()
+		for rows.Next() {
+			err := rows.Scan(&idSat)
+			if err != nil {
+				panic(err)
+			}
+		}
+		err = rows.Err()
+		if err != nil {
+			panic(err)
+		}
 		bSat := sat.GetSatelite()
 		var ds *goqu.InsertDataset
 		switch sat.(type) {
 		case *satelites.EaSatelite:
 			ds = dialect.Insert("computationResults").
 				Cols("idSat", "duration", "maxIono", "minIono", "avgIono", "maxNdvi", "minNdvi", "avgNdvi", "maxRad", "minRad", "avgRad", "maxSpec", "minSpec", "avgSpec").
-				Vals(goqu.Vals{db_satelites[id], fmt.Sprint(bSat.Duration), bSat.IonoCalc[0], bSat.IonoCalc[1], bSat.IonoCalc[2], bSat.NdviCalc[0], bSat.NdviCalc[1], bSat.NdviCalc[2], bSat.RadiationCalc[0], bSat.RadiationCalc[1], bSat.RadiationCalc[2], sat.(*satelites.EaSatelite).AltitudesCalc[0], sat.(*satelites.EaSatelite).AltitudesCalc[1], sat.(*satelites.EaSatelite).AltitudesCalc[2]})
+				Vals(goqu.Vals{idSat, fmt.Sprint(bSat.Duration), bSat.IonoCalc[0], bSat.IonoCalc[1], bSat.IonoCalc[2], bSat.NdviCalc[0], bSat.NdviCalc[1], bSat.NdviCalc[2], bSat.RadiationCalc[0], bSat.RadiationCalc[1], bSat.RadiationCalc[2], sat.(*satelites.EaSatelite).AltitudesCalc[0], sat.(*satelites.EaSatelite).AltitudesCalc[1], sat.(*satelites.EaSatelite).AltitudesCalc[2]})
 		case *satelites.SsSatelite:
 			ds = dialect.Insert("computationResults").
 				Cols("idSat", "duration", "maxIono", "minIono", "avgIono", "maxNdvi", "minNdvi", "avgNdvi", "maxRad", "minRad", "avgRad", "maxSpec", "minSpec", "avgSpec").
-				Vals(goqu.Vals{db_satelites[id], fmt.Sprint(bSat.Duration), bSat.IonoCalc[0], bSat.IonoCalc[1], bSat.IonoCalc[2], bSat.NdviCalc[0], bSat.NdviCalc[1], bSat.NdviCalc[2], bSat.RadiationCalc[0], bSat.RadiationCalc[1], bSat.RadiationCalc[2], sat.(*satelites.SsSatelite).SalinitiesCalc[0], sat.(*satelites.SsSatelite).SalinitiesCalc[1], sat.(*satelites.SsSatelite).SalinitiesCalc[2]})
+				Vals(goqu.Vals{idSat, fmt.Sprint(bSat.Duration), bSat.IonoCalc[0], bSat.IonoCalc[1], bSat.IonoCalc[2], bSat.NdviCalc[0], bSat.NdviCalc[1], bSat.NdviCalc[2], bSat.RadiationCalc[0], bSat.RadiationCalc[1], bSat.RadiationCalc[2], sat.(*satelites.SsSatelite).SalinitiesCalc[0], sat.(*satelites.SsSatelite).SalinitiesCalc[1], sat.(*satelites.SsSatelite).SalinitiesCalc[2]})
 		case *satelites.VcSatelite:
 			ds = dialect.Insert("computationResults").
 				Cols("idSat", "duration", "maxIono", "minIono", "avgIono", "maxNdvi", "minNdvi", "avgNdvi", "maxRad", "minRad", "avgRad", "maxSpec", "minSpec", "avgSpec").
-				Vals(goqu.Vals{db_satelites[id], fmt.Sprint(bSat.Duration), bSat.IonoCalc[0], bSat.IonoCalc[1], bSat.IonoCalc[2], bSat.NdviCalc[0], bSat.NdviCalc[1], bSat.NdviCalc[2], bSat.RadiationCalc[0], bSat.RadiationCalc[1], bSat.RadiationCalc[2], 0, 0, 0})
+				Vals(goqu.Vals{idSat, fmt.Sprint(bSat.Duration), bSat.IonoCalc[0], bSat.IonoCalc[1], bSat.IonoCalc[2], bSat.NdviCalc[0], bSat.NdviCalc[1], bSat.NdviCalc[2], bSat.RadiationCalc[0], bSat.RadiationCalc[1], bSat.RadiationCalc[2], 0, 0, 0})
 		}
 
-		sql, _, _ := ds.ToSQL()
+		sql, _, _ = ds.ToSQL()
 
 		_, err = db.Exec(sql)
 
 		if err != nil {
-			panic(err)
+			// panic(err)
 		}
 	}
-
-	db.Close()
 
 }
