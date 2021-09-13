@@ -213,14 +213,15 @@ func main() {
 
 	// store data to db
 
+	dbBaseUrl := fmt.Sprintf("%s:%s@tcp(%s:%s)/", cfg.dbUser, cfg.dbPass, cfg.dbHost, cfg.dbPort)
 	// create db
-	/* db, err := database.Create("satelites")
+	/* db, err := database.Create(dbBaseUrl, cfg.dbName, cfg.dbType)
 	if err != nil {
 		panic(err)
 	} */
 
 	// open database
-	dbUrl := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s", cfg.dbUser, cfg.dbPass, cfg.dbHost, cfg.dbPort, cfg.dbName)
+	dbUrl := dbBaseUrl + cfg.dbName
 	db, err := sql.Open(cfg.dbType, dbUrl)
 
 	if err != nil {

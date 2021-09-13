@@ -4,8 +4,8 @@ import (
 	"database/sql"
 )
 
-func Create(name string) (*sql.DB, error) {
-	db, err := sql.Open("mysql", "root:emis@tcp(127.0.0.1:3306)/")
+func Create(dbBaseUrl, name, dbType string) (*sql.DB, error) {
+	db, err := sql.Open(dbType, dbBaseUrl)
 	if err != nil {
 		return nil, err
 	}
