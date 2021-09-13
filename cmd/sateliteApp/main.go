@@ -3,6 +3,7 @@ package main
 import (
 	"database/sql"
 	"fmt"
+	"net"
 	"sateliteApp/internal/csvreader"
 	"sateliteApp/internal/satelites"
 	"sateliteApp/internal/sort"
@@ -11,16 +12,76 @@ import (
 	"time"
 
 	"github.com/doug-martin/goqu/v9"
+	"github.com/namsral/flag"
+	"github.com/pkg/errors"
 
 	_ "github.com/doug-martin/goqu/v9/dialect/mysql"
 	_ "github.com/go-sql-driver/mysql"
 )
 
+// TODO napravi cfg strukturu kao u sunspotu i koristi flagove za neke ulazne parametre kao ime baze i ip adresa, lokacija filea, itd...
+var cfg struct {
+	inputCsvUrl string
+	dateLayout  string
+
+	// DB flags
+	dbType string
+	dbUser string
+	dbPass string
+	dbHost string
+	dbPort string
+	dbName string
+}
+
+func validate() (err error) {
+	if cfg.dbType != "mysql" && cfg.dbType != "postgres" && cfg.dbType != "sqlite3" && cfg.dbType != "sqlserver" {
+		return errors.New("Invalid db type")
+	}
+	if len(cfg.dbUser) < 4 || len(cfg.dbUser) > 100 {
+		return errors.New("db user is not between 4 and 100 characters")
+	}
+	if len(cfg.dbPass) < 4 || len(cfg.dbPass) > 100 {
+		return errors.New("db password is not between 4 and 100 characters")
+	}
+	if len(cfg.dbHost) < 4 || len(cfg.dbHost) > 100 {
+		return errors.New("db host is not between 4 and 100 characters")
+	}
+	var port int
+	port, err = strconv.Atoi(cfg.dbPort)
+	if err != nil {
+		port, err = net.LookupPort("tcp", cfg.dbPort)
+		if err != nil {
+			return errors.New("Invalid db port")
+		}
+	}
+	if port < 1024 || port > 65535 {
+		return errors.New("db port is not between 1024 and 65535")
+	}
+	if len(cfg.dbName) < 4 || len(cfg.dbName) > 100 {
+		return errors.New("db name is not between 4 and 100 characters")
+	}
+
+	return nil
+}
+
 func main() {
-	url := "https://raw.githubusercontent.com/sea43d/PythonEvaluation/master/satDataCSV2.csv"
-	split := strings.Split(url, "/")
+	flag.StringVar(&cfg.inputCsvUrl, "url", "https://raw.githubusercontent.com/sea43d/PythonEvaluation/master/satDataCSV2.csv", "url of input csv file")
+	flag.StringVar(&cfg.dateLayout, "date_layout", "01-02-2006 15:04", "date layout in csv input file")
+	flag.StringVar(&cfg.dbType, "db_type", "mysql", "type of database")
+	flag.StringVar(&cfg.dbUser, "db_user", "root", "user name for database")
+	flag.StringVar(&cfg.dbPass, "db_pass", "emis", "user password for database")
+	flag.StringVar(&cfg.dbHost, "db_host", "127.0.0.1", "host for database")
+	flag.StringVar(&cfg.dbPort, "db_port", "3306", "port for database connection")
+	flag.StringVar(&cfg.dbName, "db_name", "satelites", "name of database")
+
+	err := validate()
+	if err != nil {
+		panic(err)
+	}
+
+	split := strings.Split(cfg.inputCsvUrl, "/")
 	filename := split[len(split)-1]
-	data, err := csvreader.ReadCsvFromUrl(url)
+	data, err := csvreader.ReadCsvFromUrl(cfg.inputCsvUrl)
 	if err != nil {
 		panic(err)
 	}
@@ -56,8 +117,7 @@ func main() {
 			}
 		}
 
-		layout := "01-02-2006 15:04"
-		tm, err := time.Parse(layout, row[1])
+		tm, err := time.Parse(cfg.dateLayout, row[1])
 		if err != nil {
 			panic(err)
 		}
@@ -160,7 +220,8 @@ func main() {
 	} */
 
 	// open database
-	db, err := sql.Open("mysql", "root:emis@tcp(127.0.0.1:3306)/satelites")
+	dbUrl := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s", cfg.dbUser, cfg.dbPass, cfg.dbHost, cfg.dbPort, cfg.dbName)
+	db, err := sql.Open(cfg.dbType, dbUrl)
 
 	if err != nil {
 		panic(err)
@@ -174,7 +235,7 @@ func main() {
 		panic(err)
 	} */
 
-	dialect := goqu.Dialect("mysql")
+	dialect := goqu.Dialect(cfg.dbType)
 
 	db_satelites := make(map[string]int)
 	i := 1
