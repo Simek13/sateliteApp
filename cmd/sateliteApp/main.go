@@ -4,7 +4,6 @@ import (
 	"database/sql"
 	"fmt"
 	"net"
-	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -17,6 +16,7 @@ import (
 	"github.com/go-sql-driver/mysql"
 	"github.com/namsral/flag"
 	"github.com/pkg/errors"
+	log "github.com/sirupsen/logrus"
 
 	_ "github.com/doug-martin/goqu/v9/dialect/mysql"
 )
@@ -69,6 +69,7 @@ func validate() (err error) {
 }
 
 func main() {
+	ctxlog := log.WithFields(log.Fields{"event": "main"})
 	flag.StringVar(&cfg.inputCsvUrl, "url", "https://raw.githubusercontent.com/sea43d/PythonEvaluation/master/satDataCSV2.csv", "url of input csv file")
 	flag.StringVar(&cfg.dateLayout, "date_layout", "01-02-2006 15:04", "date layout in csv input file")
 	flag.StringVar(&cfg.dbType, "db_type", "mysql", "type of database")
@@ -80,16 +81,14 @@ func main() {
 
 	err := validate()
 	if err != nil {
-		fmt.Println("%w", err)
-		os.Exit(1)
+		ctxlog.WithFields(log.Fields{"status": "failed", "error": err}).Fatal(err)
 	}
 
 	split := strings.Split(cfg.inputCsvUrl, "/")
 	filename := split[len(split)-1]
 	data, err := csvreader.ReadCsvFromUrl(cfg.inputCsvUrl)
 	if err != nil {
-		fmt.Println("Error reading csv. %w", err)
-		os.Exit(1)
+		ctxlog.WithFields(log.Fields{"status": "failed", "error": err}).Fatal("Error reading csv")
 	}
 
 	sats := make(map[string]satelites.Satellite)
@@ -128,33 +127,44 @@ func main() {
 
 		tm, err := time.Parse(cfg.dateLayout, row[1])
 		if err != nil {
-			fmt.Println("Error parsing time. %w", err)
-			os.Exit(1)
+			ctxlog.WithFields(log.Fields{"status": "failed", "error": err}).Fatal("Error parsing time")
 		}
 
 		satellite := sats[satId]
 
 		satellite.GetSatellite().Timestamps = append(satellite.GetSatellite().Timestamps, tm)
 
-		if val, err := strconv.ParseFloat(row[2], 64); err == nil {
-			satellite.GetSatellite().IonoIndexes = append(satellite.GetSatellite().IonoIndexes, val)
+		val, err := strconv.ParseFloat(row[2], 64)
+		if err != nil {
+			ctxlog.WithFields(log.Fields{"status": "failed", "error": err}).Fatal("Cannot parse given value to float")
 		}
-		if val, err := strconv.ParseFloat(row[3], 64); err == nil {
-			satellite.GetSatellite().NdviIndexes = append(satellite.GetSatellite().NdviIndexes, val)
+		satellite.GetSatellite().IonoIndexes = append(satellite.GetSatellite().IonoIndexes, val)
+
+		val, err = strconv.ParseFloat(row[3], 64)
+		if err != nil {
+			ctxlog.WithFields(log.Fields{"status": "failed", "error": err}).Fatal("Cannot parse given value to float")
 		}
-		if val, err := strconv.ParseFloat(row[4], 64); err == nil {
-			satellite.GetSatellite().RadiationIndexes = append(satellite.GetSatellite().RadiationIndexes, val)
+		satellite.GetSatellite().NdviIndexes = append(satellite.GetSatellite().NdviIndexes, val)
+
+		val, err = strconv.ParseFloat(row[4], 64)
+		if err != nil {
+			ctxlog.WithFields(log.Fields{"status": "failed", "error": err}).Fatal("Cannot parse given value to float")
 		}
+		satellite.GetSatellite().RadiationIndexes = append(satellite.GetSatellite().RadiationIndexes, val)
 
 		switch satellite.GetSatellite().SatelliteType {
 		case satelites.Ea:
-			if val, err := strconv.ParseFloat(row[5], 64); err == nil {
-				satellite.(*satelites.EaSatellite).Altitudes = append(satellite.(*satelites.EaSatellite).Altitudes, val)
+			val, err := strconv.ParseFloat(row[5], 64)
+			if err != nil {
+				ctxlog.WithFields(log.Fields{"status": "failed", "error": err}).Fatal("Cannot parse given value to float")
 			}
+			satellite.(*satelites.EaSatellite).Altitudes = append(satellite.(*satelites.EaSatellite).Altitudes, val)
 		case satelites.Ss:
-			if val, err := strconv.ParseFloat(row[5], 64); err == nil {
-				satellite.(*satelites.SsSatellite).SeaSalinities = append(satellite.(*satelites.SsSatellite).SeaSalinities, val)
+			val, err := strconv.ParseFloat(row[5], 64)
+			if err != nil {
+				ctxlog.WithFields(log.Fields{"status": "failed", "error": err}).Fatal("Cannot parse given value to float")
 			}
+			satellite.(*satelites.SsSatellite).SeaSalinities = append(satellite.(*satelites.SsSatellite).SeaSalinities, val)
 		case satelites.Vc:
 			satellite.(*satelites.VcSatellite).Vegetations = append(satellite.(*satelites.VcSatellite).Vegetations, row[5])
 		}
@@ -235,8 +245,7 @@ func main() {
 	db, err := sql.Open(cfg.dbType, dbUrl)
 
 	if err != nil {
-		fmt.Println("Error opening database. %w", err)
-		os.Exit(1)
+		ctxlog.WithFields(log.Fields{"status": "failed", "error": err}).Fatal("Error opening database")
 	}
 
 	defer db.Close()
@@ -249,16 +258,14 @@ func main() {
 		sql, _, err := dialect.Insert("satelites").Cols("name").Vals(goqu.Vals{name}).ToSQL()
 
 		if err != nil {
-			fmt.Println("Error generating sql. %w", err)
-			os.Exit(1)
+			ctxlog.WithFields(log.Fields{"status": "failed", "error": err}).Fatal("Error generating sql")
 		}
 
 		_, err = db.Exec(sql)
 
 		if err != nil {
 			if err.(*mysql.MySQLError).Number != DuplicateEntryNum {
-				fmt.Println("Error executing sql query. %w", err)
-				os.Exit(1)
+				ctxlog.WithFields(log.Fields{"status": "failed", "error": err}).Fatal("Error executing sql query")
 			}
 		}
 	}
@@ -268,43 +275,36 @@ func main() {
 		sql, _, err := dialect.From("satelites").Select("id").Where(goqu.C("name").Eq(row[0])).ToSQL()
 
 		if err != nil {
-			fmt.Println("Error generating sql. %w", err)
-			os.Exit(1)
+			ctxlog.WithFields(log.Fields{"status": "failed", "error": err}).Fatal("Error generating sql")
 		}
 		rows, err := db.Query(sql)
 		if err != nil {
-			fmt.Println("Error executing sql query. %w", err)
-			os.Exit(1)
+			ctxlog.WithFields(log.Fields{"status": "failed", "error": err}).Fatal("Error executing sql query")
 		}
 		defer rows.Close()
 		var idSat int
 		for rows.Next() {
 			err := rows.Scan(&idSat)
 			if err != nil {
-				fmt.Println("Error scanning rows. %w", err)
-				os.Exit(1)
+				ctxlog.WithFields(log.Fields{"status": "failed", "error": err}).Fatal("Error scanning rows")
 			}
 		}
 		err = rows.Err()
 		if err != nil {
-			fmt.Println("Error scanning rows. %w", err)
-			os.Exit(1)
+			ctxlog.WithFields(log.Fields{"status": "failed", "error": err}).Fatal("Error scanning rows")
 		}
 
-		ionoIndex, err := strconv.ParseFloat(row[2], 64)
+		ionoIndex, err := strconv.ParseFloat(row[0], 64)
 		if err != nil {
-			fmt.Println("Cannot parse given value to float. %w", err)
-			os.Exit(1)
+			ctxlog.WithFields(log.Fields{"status": "failed", "error": err}).Fatal("Cannot parse given value to float")
 		}
 		ndviIndex, err := strconv.ParseFloat(row[3], 64)
 		if err != nil {
-			fmt.Println("Cannot parse given value to float. %w", err)
-			os.Exit(1)
+			ctxlog.WithFields(log.Fields{"status": "failed", "error": err}).Fatal("Cannot parse given value to float")
 		}
 		radiationIndex, err := strconv.ParseFloat(row[4], 64)
 		if err != nil {
-			fmt.Println("Cannot parse given value to float. %w", err)
-			os.Exit(1)
+			ctxlog.WithFields(log.Fields{"status": "failed", "error": err}).Fatal("Cannot parse given value to float")
 		}
 
 		sql, _, err = dialect.Insert("measurements").
@@ -312,15 +312,13 @@ func main() {
 			Vals(goqu.Vals{filename, idSat, row[1], ionoIndex, ndviIndex, radiationIndex, row[5]}).ToSQL()
 
 		if err != nil {
-			fmt.Println("Error generating sql. %w", err)
-			os.Exit(1)
+			ctxlog.WithFields(log.Fields{"status": "failed", "error": err}).Fatal("Error generating sql")
 		}
 		_, err = db.Exec(sql)
 
 		if err != nil {
 			if err.(*mysql.MySQLError).Number != DuplicateEntryNum {
-				fmt.Println("Error executing sql query. %w", err)
-				os.Exit(1)
+				ctxlog.WithFields(log.Fields{"status": "failed", "error": err}).Fatal("Error executing sql query")
 			}
 		}
 	}
@@ -328,27 +326,23 @@ func main() {
 	for name, sat := range sats {
 		sql, _, err := dialect.From("satelites").Select("id").Where(goqu.C("name").Eq(name)).ToSQL()
 		if err != nil {
-			fmt.Println("Error generating sql. %w", err)
-			os.Exit(1)
+			ctxlog.WithFields(log.Fields{"status": "failed", "error": err}).Fatal("Error generating sql")
 		}
 		rows, err := db.Query(sql)
 		if err != nil {
-			fmt.Println("Error executing sql query. %w", err)
-			os.Exit(1)
+			ctxlog.WithFields(log.Fields{"status": "failed", "error": err}).Fatal("Error executing sql query")
 		}
 		defer rows.Close()
 		var idSat int
 		for rows.Next() {
 			err := rows.Scan(&idSat)
 			if err != nil {
-				fmt.Println("Error scanning rows. %w", err)
-				os.Exit(1)
+				ctxlog.WithFields(log.Fields{"status": "failed", "error": err}).Fatal("Error scanning rows")
 			}
 		}
 		err = rows.Err()
 		if err != nil {
-			fmt.Println("Error scanning rows. %w", err)
-			os.Exit(1)
+			ctxlog.WithFields(log.Fields{"status": "failed", "error": err}).Fatal("Error scanning rows")
 		}
 		bSat := sat.GetSatellite()
 		var ds *goqu.InsertDataset
@@ -370,15 +364,13 @@ func main() {
 		sql, _, err = ds.ToSQL()
 
 		if err != nil {
-			fmt.Println("Error generating sql. %w", err)
-			os.Exit(1)
+			ctxlog.WithFields(log.Fields{"status": "failed", "error": err}).Fatal("Error generating sql")
 		}
 		_, err = db.Exec(sql)
 
 		if err != nil {
 			if err.(*mysql.MySQLError).Number != DuplicateEntryNum {
-				fmt.Println("Error executing sql query. %w", err)
-				os.Exit(1)
+				ctxlog.WithFields(log.Fields{"status": "failed", "error": err}).Fatal("Error executing sql query")
 			}
 		}
 	}
