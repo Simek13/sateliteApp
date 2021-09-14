@@ -43,3 +43,15 @@ db-down: MIGRATE_BIN:="migrate"
 db-down: db-deps ## run a database downgrade
 	$(MIGRATE_BIN) -path $(MIGRATIONS_FOLDER) -database \
 	mysql://$(USER):$(PASSWORD)@tcp\($(MYSQLHOST):$(PORT)\)/$(DBNAME) down
+
+################################################################################
+# TESTING
+################################################################################
+
+.PHONY: lint-deps
+lint-deps: ## get linter for testing
+	go install honnef.co/go/tools/cmd/staticcheck@latest
+
+.PHONY: lint
+lint: lint-deps ## get linter for testing
+	staticcheck ./...

@@ -6,13 +6,21 @@ import (
 	"github.com/Simek13/sateliteApp/internal/math"
 )
 
-type Satelite interface {
+type Satellite interface {
 	MeasurementTime() time.Duration
 	Compute() ([]float64, []float64, []float64, []float64)
-	GetSatelite() *BasicSatelite
+	GetSatellite() *BasicSatellite
 }
 
-type BasicSatelite struct {
+type SatType int
+
+const (
+	Ea SatType = iota
+	Vc
+	Ss
+)
+
+type BasicSatellite struct {
 	Id               string
 	Timestamps       []time.Time
 	IonoIndexes      []float64
@@ -22,26 +30,27 @@ type BasicSatelite struct {
 	IonoCalc         []float64
 	NdviCalc         []float64
 	RadiationCalc    []float64
+	SatelliteType    SatType
 }
 
-type EaSatelite struct {
-	Sat           *BasicSatelite
+type EaSatellite struct {
+	BasicSatellite
 	Altitudes     []float64
 	AltitudesCalc []float64
 }
 
-type VcSatelite struct {
-	Sat         *BasicSatelite
+type VcSatellite struct {
+	BasicSatellite
 	Vegetations []string
 }
 
-type SsSatelite struct {
-	Sat            *BasicSatelite
+type SsSatellite struct {
+	BasicSatellite
 	SeaSalinities  []float64
 	SalinitiesCalc []float64
 }
 
-func (sat *BasicSatelite) MeasurementTime() time.Duration {
+func (sat *BasicSatellite) MeasurementTime() time.Duration {
 	minD := math.MinDate(sat.Timestamps)
 	maxD := math.MaxDate(sat.Timestamps)
 	timeDiff := maxD.Sub(minD)
@@ -49,7 +58,7 @@ func (sat *BasicSatelite) MeasurementTime() time.Duration {
 	return timeDiff
 }
 
-func (sat *BasicSatelite) Compute() ([]float64, []float64, []float64, []float64) {
+func (sat *BasicSatellite) Compute() ([]float64, []float64, []float64, []float64) {
 	values := sat.IonoIndexes
 	min := math.Min(values)
 	max := math.Max(values)
@@ -70,12 +79,12 @@ func (sat *BasicSatelite) Compute() ([]float64, []float64, []float64, []float64)
 
 }
 
-func (eaSat *EaSatelite) MeasurementTime() time.Duration {
-	return eaSat.Sat.MeasurementTime()
+func (sat *BasicSatellite) GetSatellite() *BasicSatellite {
+	return sat
 }
 
-func (eaSat *EaSatelite) Compute() ([]float64, []float64, []float64, []float64) {
-	ionoCalc, ndviCalc, radiationCalc, _ := eaSat.Sat.Compute()
+func (eaSat *EaSatellite) Compute() ([]float64, []float64, []float64, []float64) {
+	ionoCalc, ndviCalc, radiationCalc, _ := eaSat.BasicSatellite.Compute()
 	values := eaSat.Altitudes
 	min := math.Min(values)
 	max := math.Max(values)
@@ -84,37 +93,12 @@ func (eaSat *EaSatelite) Compute() ([]float64, []float64, []float64, []float64) 
 	return ionoCalc, ndviCalc, radiationCalc, eaSat.AltitudesCalc[:]
 }
 
-func (eaSat *EaSatelite) GetSatelite() *BasicSatelite {
-	return eaSat.Sat
-}
-
-func (vcSat *VcSatelite) MeasurementTime() time.Duration {
-	return vcSat.Sat.MeasurementTime()
-}
-
-func (vcSat *VcSatelite) Compute() ([]float64, []float64, []float64, []float64) {
-	ionoCalc, ndviCalc, radiationCalc, _ := vcSat.Sat.Compute()
-	return ionoCalc, ndviCalc, radiationCalc, nil
-}
-
-func (vcSat *VcSatelite) GetSatelite() *BasicSatelite {
-	return vcSat.Sat
-}
-
-func (ssSat *SsSatelite) MeasurementTime() time.Duration {
-	return ssSat.Sat.MeasurementTime()
-}
-
-func (ssSat *SsSatelite) Compute() ([]float64, []float64, []float64, []float64) {
-	ionoCalc, ndviCalc, radiationCalc, _ := ssSat.Sat.Compute()
+func (ssSat *SsSatellite) Compute() ([]float64, []float64, []float64, []float64) {
+	ionoCalc, ndviCalc, radiationCalc, _ := ssSat.BasicSatellite.Compute()
 	values := ssSat.SeaSalinities
 	min := math.Min(values)
 	max := math.Max(values)
 	avg := math.Avg(values)
 	ssSat.SalinitiesCalc = []float64{min, max, avg}
 	return ionoCalc, ndviCalc, radiationCalc, ssSat.SalinitiesCalc[:]
-}
-
-func (ssSat *SsSatelite) GetSatelite() *BasicSatelite {
-	return ssSat.Sat
 }
