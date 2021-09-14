@@ -1,4 +1,4 @@
-module sateliteApp
+module github.com/Simek13/sateliteApp
 
 go 1.17
 

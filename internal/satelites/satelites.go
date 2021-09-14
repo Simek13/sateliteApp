@@ -1,8 +1,9 @@
 package satelites
 
 import (
-	"sateliteApp/internal/math"
 	"time"
+
+	"github.com/Simek13/sateliteApp/internal/math"
 )
 
 type Satelite interface {

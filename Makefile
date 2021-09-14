@@ -6,9 +6,8 @@ PORT:=3306
 DBNAME:=satelites
 GOOS:=windows
 PRODUCT:= sateliteApp
-REPO:=github.com
+REPO:=github.com/Simek13
 GOARCH:=amd64
-
 
 ################################################################################
 # BUILD

@@ -4,12 +4,13 @@ import (
 	"database/sql"
 	"fmt"
 	"net"
-	"sateliteApp/internal/csvreader"
-	"sateliteApp/internal/satelites"
-	"sateliteApp/internal/sort"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/Simek13/sateliteApp/internal/csvreader"
+	"github.com/Simek13/sateliteApp/internal/satelites"
+	"github.com/Simek13/sateliteApp/internal/sort"
 
 	"github.com/doug-martin/goqu/v9"
 	"github.com/namsral/flag"
