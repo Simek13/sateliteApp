@@ -1,4 +1,4 @@
-package satelites
+package satellites
 
 import (
 	"time"

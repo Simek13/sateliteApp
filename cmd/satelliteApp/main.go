@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/Simek13/satelliteApp/internal/csvreader"
-	satelites "github.com/Simek13/satelliteApp/internal/satellites"
+	satellites "github.com/Simek13/satelliteApp/internal/satellites"
 	"github.com/Simek13/satelliteApp/internal/sort"
 
 	"github.com/doug-martin/goqu/v9"
@@ -77,7 +77,7 @@ func main() {
 	flag.StringVar(&cfg.dbPass, "db_pass", "emis", "user password for database")
 	flag.StringVar(&cfg.dbHost, "db_host", "127.0.0.1", "host for database")
 	flag.StringVar(&cfg.dbPort, "db_port", "3306", "port for database connection")
-	flag.StringVar(&cfg.dbName, "db_name", "satelites", "name of database")
+	flag.StringVar(&cfg.dbName, "db_name", "satellites", "name of database")
 
 	err := validate()
 	if err != nil {
@@ -91,13 +91,13 @@ func main() {
 		ctxlog.WithFields(log.Fields{"status": "failed", "error": err}).Fatal("Error reading csv")
 	}
 
-	sats := make(map[string]satelites.Satellite)
+	sats := make(map[string]satellites.Satellite)
 
 	for _, row := range data[1:] {
 
 		satId := row[0]
 		if _, ok := sats[satId]; !ok {
-			sat := satelites.BasicSatellite{Id: satId,
+			sat := satellites.BasicSatellite{Id: satId,
 				Timestamps:       make([]time.Time, 0),
 				IonoIndexes:      make([]float64, 0),
 				NdviIndexes:      make([]float64, 0),
@@ -105,20 +105,20 @@ func main() {
 			}
 			switch satId {
 			case "30J14":
-				sat.SatelliteType = satelites.Ea
-				sats[satId] = &satelites.EaSatellite{
+				sat.SatelliteType = satellites.Ea
+				sats[satId] = &satellites.EaSatellite{
 					BasicSatellite: sat,
 					Altitudes:      make([]float64, 0),
 				}
 			case "13A14", "6N14":
-				sat.SatelliteType = satelites.Ss
-				sats[satId] = &satelites.SsSatellite{
+				sat.SatelliteType = satellites.Ss
+				sats[satId] = &satellites.SsSatellite{
 					BasicSatellite: sat,
 					SeaSalinities:  make([]float64, 0),
 				}
 			case "8J14":
-				sat.SatelliteType = satelites.Vc
-				sats[satId] = &satelites.VcSatellite{
+				sat.SatelliteType = satellites.Vc
+				sats[satId] = &satellites.VcSatellite{
 					BasicSatellite: sat,
 					Vegetations:    make([]string, 0),
 				}
@@ -153,20 +153,20 @@ func main() {
 		satellite.GetSatellite().RadiationIndexes = append(satellite.GetSatellite().RadiationIndexes, val)
 
 		switch satellite.GetSatellite().SatelliteType {
-		case satelites.Ea:
+		case satellites.Ea:
 			val, err := strconv.ParseFloat(row[5], 64)
 			if err != nil {
 				ctxlog.WithFields(log.Fields{"status": "failed", "error": err}).Fatal("Cannot parse given value to float")
 			}
-			satellite.(*satelites.EaSatellite).Altitudes = append(satellite.(*satelites.EaSatellite).Altitudes, val)
-		case satelites.Ss:
+			satellite.(*satellites.EaSatellite).Altitudes = append(satellite.(*satellites.EaSatellite).Altitudes, val)
+		case satellites.Ss:
 			val, err := strconv.ParseFloat(row[5], 64)
 			if err != nil {
 				ctxlog.WithFields(log.Fields{"status": "failed", "error": err}).Fatal("Cannot parse given value to float")
 			}
-			satellite.(*satelites.SsSatellite).SeaSalinities = append(satellite.(*satelites.SsSatellite).SeaSalinities, val)
-		case satelites.Vc:
-			satellite.(*satelites.VcSatellite).Vegetations = append(satellite.(*satelites.VcSatellite).Vegetations, row[5])
+			satellite.(*satellites.SsSatellite).SeaSalinities = append(satellite.(*satellites.SsSatellite).SeaSalinities, val)
+		case satellites.Vc:
+			satellite.(*satellites.VcSatellite).Vegetations = append(satellite.(*satellites.VcSatellite).Vegetations, row[5])
 		}
 	}
 
@@ -194,10 +194,10 @@ func main() {
 		fmt.Println("Radiation index:", radCalc[0], "(MIN)", radCalc[1], "(MAX)", radCalc[2], "(AVG)")
 		radAvg[id] = radCalc[2]
 		switch sat.GetSatellite().SatelliteType {
-		case satelites.Ea:
+		case satellites.Ea:
 			fmt.Println("Earth altitude:", specCalc[0], "(MIN)", specCalc[1], "(MAX)", specCalc[2], "(AVG)")
 			altAvg[id] = specCalc[2]
-		case satelites.Ss:
+		case satellites.Ss:
 			fmt.Println("Sea salinity index:", specCalc[0], "(MIN)", specCalc[1], "(MAX)", specCalc[2], "(AVG)")
 			salAvg[id] = specCalc[2]
 		}
@@ -237,7 +237,7 @@ func main() {
 	// create db
 	/* db, err := database.Create(dbBaseUrl, cfg.dbName, cfg.dbType)
 	if err != nil {
-		fmt.Println("error in db while checking: %w", err))
+		fmt.Println("error in db while checking: %w", err)
 	} */
 
 	// open database
@@ -255,7 +255,7 @@ func main() {
 	dialect := goqu.Dialect(cfg.dbType)
 
 	for name := range sats {
-		sql, _, err := dialect.Insert("satelites").Cols("name").Vals(goqu.Vals{name}).ToSQL()
+		sql, _, err := dialect.Insert("satellites").Cols("name").Vals(goqu.Vals{name}).ToSQL()
 
 		if err != nil {
 			ctxlog.WithFields(log.Fields{"status": "failed", "error": err}).Fatal("Error generating sql")
@@ -272,7 +272,7 @@ func main() {
 
 	for _, row := range data[1:] {
 
-		sql, _, err := dialect.From("satelites").Select("id").Where(goqu.C("name").Eq(row[0])).ToSQL()
+		sql, _, err := dialect.From("satellites").Select("id").Where(goqu.C("name").Eq(row[0])).ToSQL()
 
 		if err != nil {
 			ctxlog.WithFields(log.Fields{"status": "failed", "error": err}).Fatal("Error generating sql")
@@ -324,7 +324,7 @@ func main() {
 	}
 
 	for name, sat := range sats {
-		sql, _, err := dialect.From("satelites").Select("id").Where(goqu.C("name").Eq(name)).ToSQL()
+		sql, _, err := dialect.From("satellites").Select("id").Where(goqu.C("name").Eq(name)).ToSQL()
 		if err != nil {
 			ctxlog.WithFields(log.Fields{"status": "failed", "error": err}).Fatal("Error generating sql")
 		}
@@ -347,15 +347,15 @@ func main() {
 		bSat := sat.GetSatellite()
 		var ds *goqu.InsertDataset
 		switch sat.GetSatellite().SatelliteType {
-		case satelites.Ea:
+		case satellites.Ea:
 			ds = dialect.Insert("computationResults").
 				Cols("idSat", "duration", "maxIono", "minIono", "avgIono", "maxNdvi", "minNdvi", "avgNdvi", "maxRad", "minRad", "avgRad", "maxSpec", "minSpec", "avgSpec").
-				Vals(goqu.Vals{idSat, fmt.Sprint(bSat.Duration), bSat.IonoCalc[0], bSat.IonoCalc[1], bSat.IonoCalc[2], bSat.NdviCalc[0], bSat.NdviCalc[1], bSat.NdviCalc[2], bSat.RadiationCalc[0], bSat.RadiationCalc[1], bSat.RadiationCalc[2], sat.(*satelites.EaSatellite).AltitudesCalc[0], sat.(*satelites.EaSatellite).AltitudesCalc[1], sat.(*satelites.EaSatellite).AltitudesCalc[2]})
-		case satelites.Ss:
+				Vals(goqu.Vals{idSat, fmt.Sprint(bSat.Duration), bSat.IonoCalc[0], bSat.IonoCalc[1], bSat.IonoCalc[2], bSat.NdviCalc[0], bSat.NdviCalc[1], bSat.NdviCalc[2], bSat.RadiationCalc[0], bSat.RadiationCalc[1], bSat.RadiationCalc[2], sat.(*satellites.EaSatellite).AltitudesCalc[0], sat.(*satellites.EaSatellite).AltitudesCalc[1], sat.(*satellites.EaSatellite).AltitudesCalc[2]})
+		case satellites.Ss:
 			ds = dialect.Insert("computationResults").
 				Cols("idSat", "duration", "maxIono", "minIono", "avgIono", "maxNdvi", "minNdvi", "avgNdvi", "maxRad", "minRad", "avgRad", "maxSpec", "minSpec", "avgSpec").
-				Vals(goqu.Vals{idSat, fmt.Sprint(bSat.Duration), bSat.IonoCalc[0], bSat.IonoCalc[1], bSat.IonoCalc[2], bSat.NdviCalc[0], bSat.NdviCalc[1], bSat.NdviCalc[2], bSat.RadiationCalc[0], bSat.RadiationCalc[1], bSat.RadiationCalc[2], sat.(*satelites.SsSatellite).SalinitiesCalc[0], sat.(*satelites.SsSatellite).SalinitiesCalc[1], sat.(*satelites.SsSatellite).SalinitiesCalc[2]})
-		case satelites.Vc:
+				Vals(goqu.Vals{idSat, fmt.Sprint(bSat.Duration), bSat.IonoCalc[0], bSat.IonoCalc[1], bSat.IonoCalc[2], bSat.NdviCalc[0], bSat.NdviCalc[1], bSat.NdviCalc[2], bSat.RadiationCalc[0], bSat.RadiationCalc[1], bSat.RadiationCalc[2], sat.(*satellites.SsSatellite).SalinitiesCalc[0], sat.(*satellites.SsSatellite).SalinitiesCalc[1], sat.(*satellites.SsSatellite).SalinitiesCalc[2]})
+		case satellites.Vc:
 			ds = dialect.Insert("computationResults").
 				Cols("idSat", "duration", "maxIono", "minIono", "avgIono", "maxNdvi", "minNdvi", "avgNdvi", "maxRad", "minRad", "avgRad", "maxSpec", "minSpec", "avgSpec").
 				Vals(goqu.Vals{idSat, fmt.Sprint(bSat.Duration), bSat.IonoCalc[0], bSat.IonoCalc[1], bSat.IonoCalc[2], bSat.NdviCalc[0], bSat.NdviCalc[1], bSat.NdviCalc[2], bSat.RadiationCalc[0], bSat.RadiationCalc[1], bSat.RadiationCalc[2], 0, 0, 0})

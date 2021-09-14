@@ -3,9 +3,9 @@ USER:= root
 PASSWORD:= emis
 MYSQLHOST:=localhost
 PORT:=3306
-DBNAME:=satelites
+DBNAME:=satellites
 GOOS:=windows
-PRODUCT:= sateliteApp
+PRODUCT:= satelliteApp
 REPO:=github.com/Simek13
 GOARCH:=amd64
 

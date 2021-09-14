@@ -1,4 +1,4 @@
-CREATE TABLE IF NOT EXISTS `satelites` ( 
+CREATE TABLE IF NOT EXISTS `satellites` ( 
     `id` int NOT NULL AUTO_INCREMENT, 
     `name` varchar(32) NOT NULL UNIQUE,
     PRIMARY KEY (`id`)
@@ -14,7 +14,7 @@ CREATE TABLE IF NOT EXISTS `measurements` (
     `radiationIndex` float, 
     `specificMeasurement` varchar(32),
     PRIMARY KEY (`id`),
-    FOREIGN KEY (`idSat`) REFERENCES `satelites`(`id`) ON DELETE NO ACTION ON UPDATE NO ACTION
+    FOREIGN KEY (`idSat`) REFERENCES `satellites`(`id`) ON DELETE NO ACTION ON UPDATE NO ACTION
 );
 
 CREATE TABLE IF NOT EXISTS `computationResults` ( 
@@ -34,6 +34,6 @@ CREATE TABLE IF NOT EXISTS `computationResults` (
     `minSpec` float, 
     `avgSpec` float,
     PRIMARY KEY (`id`),
-    FOREIGN KEY (`idSat`) REFERENCES `satelites`(`id`) ON DELETE NO ACTION ON UPDATE NO ACTION
+    FOREIGN KEY (`idSat`) REFERENCES `satellites`(`id`) ON DELETE NO ACTION ON UPDATE NO ACTION
 );
 
