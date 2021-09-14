@@ -4,7 +4,23 @@ PASSWORD:= emis
 MYSQLHOST:=localhost
 PORT:=3306
 DBNAME:=satelites
+GOOS:=windows
+PRODUCT:= sateliteApp
+REPO:=github.com
+GOARCH:=amd64
 
+
+################################################################################
+# BUILD
+################################################################################
+
+.PHONY: build-deps
+build-deps:
+	go mod tidy
+
+.PHONY: build
+build: build-deps
+	GOOS=$(GOOS) GOARCH=$(GOARCH) go build -v -o $(PRODUCT) "$(REPO)/$(PRODUCT)/cmd/$(PRODUCT)"
 
 ################################################################################
 # DATABASE
