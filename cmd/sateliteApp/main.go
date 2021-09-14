@@ -8,9 +8,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Simek13/sateliteApp/internal/csvreader"
-	"github.com/Simek13/sateliteApp/internal/satelites"
-	"github.com/Simek13/sateliteApp/internal/sort"
+	"github.com/Simek13/satelliteApp/internal/csvreader"
+	satelites "github.com/Simek13/satelliteApp/internal/satellites"
+	"github.com/Simek13/satelliteApp/internal/sort"
 
 	"github.com/doug-martin/goqu/v9"
 	"github.com/go-sql-driver/mysql"

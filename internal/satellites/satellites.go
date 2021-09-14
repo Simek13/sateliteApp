@@ -3,7 +3,7 @@ package satelites
 import (
 	"time"
 
-	"github.com/Simek13/sateliteApp/internal/math"
+	"github.com/Simek13/satelliteApp/internal/math"
 )
 
 type Satellite interface {
