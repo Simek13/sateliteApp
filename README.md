@@ -1,2 +1,2 @@
-# satelites
-Golang solution to satelites evaluation task
+# satellites
+Golang solution to satellites evaluation task
