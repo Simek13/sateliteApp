@@ -294,7 +294,7 @@ func main() {
 			ctxlog.WithFields(log.Fields{"status": "failed", "error": err}).Fatal("Error scanning rows")
 		}
 
-		ionoIndex, err := strconv.ParseFloat(row[0], 64)
+		ionoIndex, err := strconv.ParseFloat(row[2], 64)
 		if err != nil {
 			ctxlog.WithFields(log.Fields{"status": "failed", "error": err}).Fatal("Cannot parse given value to float")
 		}
