@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"net"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -79,14 +80,16 @@ func main() {
 
 	err := validate()
 	if err != nil {
-		panic(err)
+		fmt.Println("%w", err)
+		os.Exit(1)
 	}
 
 	split := strings.Split(cfg.inputCsvUrl, "/")
 	filename := split[len(split)-1]
 	data, err := csvreader.ReadCsvFromUrl(cfg.inputCsvUrl)
 	if err != nil {
-		panic(err)
+		fmt.Println("Error reading csv. %w", err)
+		os.Exit(1)
 	}
 
 	sats := make(map[string]satelites.Satellite)
@@ -125,7 +128,8 @@ func main() {
 
 		tm, err := time.Parse(cfg.dateLayout, row[1])
 		if err != nil {
-			panic(err)
+			fmt.Println("Error parsing time. %w", err)
+			os.Exit(1)
 		}
 
 		satellite := sats[satId]
@@ -223,7 +227,7 @@ func main() {
 	// create db
 	/* db, err := database.Create(dbBaseUrl, cfg.dbName, cfg.dbType)
 	if err != nil {
-		panic(err)
+		fmt.Println("error in db while checking: %w", err))
 	} */
 
 	// open database
@@ -231,7 +235,8 @@ func main() {
 	db, err := sql.Open(cfg.dbType, dbUrl)
 
 	if err != nil {
-		panic(err)
+		fmt.Println("Error opening database. %w", err)
+		os.Exit(1)
 	}
 
 	defer db.Close()
@@ -241,83 +246,109 @@ func main() {
 	dialect := goqu.Dialect(cfg.dbType)
 
 	for name := range sats {
-		ds := dialect.Insert("satelites").Cols("name").Vals(goqu.Vals{name})
-		sql, _, _ := ds.ToSQL()
+		sql, _, err := dialect.Insert("satelites").Cols("name").Vals(goqu.Vals{name}).ToSQL()
+
+		if err != nil {
+			fmt.Println("Error generating sql. %w", err)
+			os.Exit(1)
+		}
 
 		_, err = db.Exec(sql)
 
 		if err != nil {
 			if err.(*mysql.MySQLError).Number != DuplicateEntryNum {
-				panic(err)
+				fmt.Println("Error executing sql query. %w", err)
+				os.Exit(1)
 			}
 		}
 	}
 
 	for _, row := range data[1:] {
 
-		sql, _, _ := dialect.From("satelites").Select("id").Where(goqu.C("name").Eq(row[0])).ToSQL()
-		var idSat int
+		sql, _, err := dialect.From("satelites").Select("id").Where(goqu.C("name").Eq(row[0])).ToSQL()
+
+		if err != nil {
+			fmt.Println("Error generating sql. %w", err)
+			os.Exit(1)
+		}
 		rows, err := db.Query(sql)
 		if err != nil {
-			panic(err)
+			fmt.Println("Error executing sql query. %w", err)
+			os.Exit(1)
 		}
 		defer rows.Close()
+		var idSat int
 		for rows.Next() {
 			err := rows.Scan(&idSat)
 			if err != nil {
-				panic(err)
+				fmt.Println("Error scanning rows. %w", err)
+				os.Exit(1)
 			}
 		}
 		err = rows.Err()
 		if err != nil {
-			panic(err)
+			fmt.Println("Error scanning rows. %w", err)
+			os.Exit(1)
 		}
 
 		ionoIndex, err := strconv.ParseFloat(row[2], 64)
 		if err != nil {
-			panic(err)
+			fmt.Println("Cannot parse given value to float. %w", err)
+			os.Exit(1)
 		}
 		ndviIndex, err := strconv.ParseFloat(row[3], 64)
 		if err != nil {
-			panic(err)
+			fmt.Println("Cannot parse given value to float. %w", err)
+			os.Exit(1)
 		}
 		radiationIndex, err := strconv.ParseFloat(row[4], 64)
 		if err != nil {
-			panic(err)
+			fmt.Println("Cannot parse given value to float. %w", err)
+			os.Exit(1)
 		}
 
-		ds := dialect.Insert("measurements").
+		sql, _, err = dialect.Insert("measurements").
 			Cols("filename", "idSat", "timestamp", "ionoIndex", "ndviIndex", "radiationIndex", "specificMeasurement").
-			Vals(goqu.Vals{filename, idSat, row[1], ionoIndex, ndviIndex, radiationIndex, row[5]})
+			Vals(goqu.Vals{filename, idSat, row[1], ionoIndex, ndviIndex, radiationIndex, row[5]}).ToSQL()
 
-		sql, _, _ = ds.ToSQL()
-
+		if err != nil {
+			fmt.Println("Error generating sql. %w", err)
+			os.Exit(1)
+		}
 		_, err = db.Exec(sql)
 
 		if err != nil {
 			if err.(*mysql.MySQLError).Number != DuplicateEntryNum {
-				panic(err)
+				fmt.Println("Error executing sql query. %w", err)
+				os.Exit(1)
 			}
 		}
 	}
 
 	for name, sat := range sats {
-		sql, _, _ := dialect.From("satelites").Select("id").Where(goqu.C("name").Eq(name)).ToSQL()
-		var idSat int
+		sql, _, err := dialect.From("satelites").Select("id").Where(goqu.C("name").Eq(name)).ToSQL()
+		if err != nil {
+			fmt.Println("Error generating sql. %w", err)
+			os.Exit(1)
+		}
 		rows, err := db.Query(sql)
 		if err != nil {
-			panic(err)
+			fmt.Println("Error executing sql query. %w", err)
+			os.Exit(1)
 		}
 		defer rows.Close()
+		var idSat int
 		for rows.Next() {
 			err := rows.Scan(&idSat)
 			if err != nil {
-				panic(err)
+				fmt.Println("Error scanning rows. %w", err)
+				os.Exit(1)
 			}
 		}
 		err = rows.Err()
 		if err != nil {
-			panic(err)
+			fmt.Println("Error scanning rows. %w", err)
+			os.Exit(1)
 		}
 		bSat := sat.GetSatellite()
 		var ds *goqu.InsertDataset
@@ -336,13 +367,18 @@ func main() {
 				Vals(goqu.Vals{idSat, fmt.Sprint(bSat.Duration), bSat.IonoCalc[0], bSat.IonoCalc[1], bSat.IonoCalc[2], bSat.NdviCalc[0], bSat.NdviCalc[1], bSat.NdviCalc[2], bSat.RadiationCalc[0], bSat.RadiationCalc[1], bSat.RadiationCalc[2], 0, 0, 0})
 		}
 
-		sql, _, _ = ds.ToSQL()
+		sql, _, err = ds.ToSQL()
 
+		if err != nil {
+			fmt.Println("Error generating sql. %w", err)
+			os.Exit(1)
+		}
 		_, err = db.Exec(sql)
 
 		if err != nil {
 			if err.(*mysql.MySQLError).Number != DuplicateEntryNum {
-				panic(err)
+				fmt.Println("Error executing sql query. %w", err)
+				os.Exit(1)
 			}
 		}
 	}
