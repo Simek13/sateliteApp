@@ -9,8 +9,4 @@ require (
 	github.com/pkg/errors v0.9.1
 )
 
-require (
-	github.com/golang-migrate/migrate/v4 v4.14.1 // indirect
-	github.com/hashicorp/errwrap v1.0.0 // indirect
-	github.com/hashicorp/go-multierror v1.1.0 // indirect
-)
+require github.com/stretchr/objx v0.2.0 // indirect
