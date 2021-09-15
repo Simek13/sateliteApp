@@ -1,7 +1,7 @@
 package database
 
 type Measurement struct {
-	Id                  int     `db:"id" goqu:"skipinsert" goqu:"skipupdate"`
+	Id                  int     `db:"id" goqu:"skipinsert, skipupdate"`
 	FileName            string  `db:"filename"`
 	IdSat               int     `db:"idSat"`
 	Timestamp           string  `db:"timestamp"`

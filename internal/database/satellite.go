@@ -6,7 +6,7 @@ import (
 )
 
 type Satellite struct {
-	Id   int    `db:"id" goqu:"skipinsert" goqu:"skipupdate"`
+	Id   int    `db:"id" goqu:"skipinsert, skipupdate"`
 	Name string `db:"name"`
 }
 

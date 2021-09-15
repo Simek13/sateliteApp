@@ -1,7 +1,7 @@
 package database
 
 type Computation struct {
-	Id       int     `db:"id" goqu:"skipinsert" goqu:"skipupdate"`
+	Id       int     `db:"id" goqu:"skipinsert, skipupdate"`
 	IdSat    int     `db:"idSat"`
 	Duration string  `db:"duration"`
 	MaxIono  float64 `db:"maxIono"`

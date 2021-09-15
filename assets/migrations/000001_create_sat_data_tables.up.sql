@@ -7,7 +7,7 @@ CREATE TABLE IF NOT EXISTS `satellites` (
 CREATE TABLE IF NOT EXISTS `measurements` ( 
     `id` int NOT NULL AUTO_INCREMENT,
     `filename` varchar(32), 
-    `idSat` int, 
+    `idSat` int NOT NULL, 
     `timestamp` varchar(32), 
     `ionoIndex` float, 
     `ndviIndex` float, 
@@ -19,7 +19,7 @@ CREATE TABLE IF NOT EXISTS `measurements` (
 
 CREATE TABLE IF NOT EXISTS `computations` ( 
     `id` int NOT NULL AUTO_INCREMENT,
-    `idSat` int, 
+    `idSat` int NOT NULL UNIQUE, 
     `duration` varchar(32), 
     `maxIono` float, 
     `minIono` float, 
