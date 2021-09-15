@@ -176,8 +176,6 @@ func main() {
 
 	fmt.Println("Successfully Connected to MySQL database")
 
-	dialect := goqu.Dialect(cfg.dbType)
-
 	for name := range sats {
 		s := &database.Satellite{Name: name}
 		err := mysqlDb.AddSatellite(s)
@@ -190,26 +188,9 @@ func main() {
 
 	for _, row := range data[1:] {
 
-		sql, _, err := dialect.From("satellites").Select("id").Where(goqu.C("name").Eq(row[0])).ToSQL()
-
+		idSat, err := mysqlDb.GetSatelliteId(row[0])
 		if err != nil {
-			ctxlog.WithFields(log.Fields{"status": "failed", "error": err}).Fatal("Error generating sql")
-		}
-		rows, err := db.Query(sql)
-		if err != nil {
-			ctxlog.WithFields(log.Fields{"status": "failed", "error": err}).Fatal("Error executing sql query")
-		}
-		defer rows.Close()
-		var idSat int
-		for rows.Next() {
-			err := rows.Scan(&idSat)
-			if err != nil {
-				ctxlog.WithFields(log.Fields{"status": "failed", "error": err}).Fatal("Error scanning rows")
-			}
-		}
-		err = rows.Err()
-		if err != nil {
-			ctxlog.WithFields(log.Fields{"status": "failed", "error": err}).Fatal("Error scanning rows")
+			ctxlog.WithFields(log.Fields{"status": "failed", "error": err}).Fatal(errors.Unwrap(err))
 		}
 
 		ionoIndex, err := strconv.ParseFloat(row[2], 64)
@@ -243,25 +224,9 @@ func main() {
 	}
 
 	for name, sat := range sats {
-		sql, _, err := dialect.From("satellites").Select("id").Where(goqu.C("name").Eq(name)).ToSQL()
+		idSat, err := mysqlDb.GetSatelliteId(name)
 		if err != nil {
-			ctxlog.WithFields(log.Fields{"status": "failed", "error": err}).Fatal("Error generating sql")
-		}
-		rows, err := db.Query(sql)
-		if err != nil {
-			ctxlog.WithFields(log.Fields{"status": "failed", "error": err}).Fatal("Error executing sql query")
-		}
-		defer rows.Close()
-		var idSat int
-		for rows.Next() {
-			err := rows.Scan(&idSat)
-			if err != nil {
-				ctxlog.WithFields(log.Fields{"status": "failed", "error": err}).Fatal("Error scanning rows")
-			}
-		}
-		err = rows.Err()
-		if err != nil {
-			ctxlog.WithFields(log.Fields{"status": "failed", "error": err}).Fatal("Error scanning rows")
+			ctxlog.WithFields(log.Fields{"status": "failed", "error": err}).Fatal(errors.Unwrap(err))
 		}
 		bSat := sat.GetSatellite()
 		c := &database.Computation{
