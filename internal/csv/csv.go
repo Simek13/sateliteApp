@@ -32,6 +32,9 @@ func ParseCsvData(rows [][]string) (map[string]satellites.Satellite, error) {
 
 	sats := make(map[string]satellites.Satellite)
 
+	if len(rows) == 0 {
+		return sats, nil
+	}
 	for _, row := range rows[1:] {
 
 		satId := row[0]

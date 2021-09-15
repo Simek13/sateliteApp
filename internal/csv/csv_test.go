@@ -55,6 +55,8 @@ func TestParseCsvData(t *testing.T) {
 				},
 			},
 			false},
+		{"empty", "fixtures/empty.csv", map[string]satellites.Satellite{}, false},
+		{"invalid", "fixtures/invalidFile.csv", nil, true},
 	}
 
 	// run tests
