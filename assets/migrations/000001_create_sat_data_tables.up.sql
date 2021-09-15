@@ -17,7 +17,7 @@ CREATE TABLE IF NOT EXISTS `measurements` (
     FOREIGN KEY (`idSat`) REFERENCES `satellites`(`id`) ON DELETE NO ACTION ON UPDATE NO ACTION
 );
 
-CREATE TABLE IF NOT EXISTS `computationResults` ( 
+CREATE TABLE IF NOT EXISTS `computations` ( 
     `id` int NOT NULL AUTO_INCREMENT,
     `idSat` int, 
     `duration` varchar(32), 
