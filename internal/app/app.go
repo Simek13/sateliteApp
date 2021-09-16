@@ -1,5 +1,5 @@
 package app
 
-func run() {
+func Run() {
 
 }

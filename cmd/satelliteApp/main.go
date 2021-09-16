@@ -6,6 +6,7 @@ import (
 	"net"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/Simek13/satelliteApp/internal/csv"
 	"github.com/Simek13/satelliteApp/internal/database"
@@ -186,41 +187,46 @@ func main() {
 		}
 	}
 
-	for _, row := range data[1:] {
+	for name, sat := range sats {
 
-		idSat, err := mysqlDb.GetSatelliteId(row[0])
+		bSat := sat.GetSatellite()
+		idSat, err := mysqlDb.GetSatelliteId(name)
 		if err != nil {
 			ctxlog.WithFields(log.Fields{"status": "failed", "error": err}).Fatal(errors.Unwrap(err))
 		}
+		var timestamp time.Time
+		var ionoIndex, ndviIndex, radiationIndex float64
+		for i, _ := range sat.GetSatellite().Timestamps {
+			timestamp = bSat.Timestamps[i]
+			ionoIndex = bSat.IonoIndexes[i]
+			ndviIndex = bSat.NdviIndexes[i]
+			radiationIndex = bSat.RadiationIndexes[i]
 
-		ionoIndex, err := strconv.ParseFloat(row[2], 64)
-		if err != nil {
-			ctxlog.WithFields(log.Fields{"status": "failed", "error": err}).Fatal("Cannot parse given value to float")
-		}
-		ndviIndex, err := strconv.ParseFloat(row[3], 64)
-		if err != nil {
-			ctxlog.WithFields(log.Fields{"status": "failed", "error": err}).Fatal("Cannot parse given value to float")
-		}
-		radiationIndex, err := strconv.ParseFloat(row[4], 64)
-		if err != nil {
-			ctxlog.WithFields(log.Fields{"status": "failed", "error": err}).Fatal("Cannot parse given value to float")
+			m := &database.Measurement{
+				FileName:       filename,
+				IdSat:          idSat,
+				Timestamp:      timestamp.String(),
+				IonoIndex:      ionoIndex,
+				NdviIndex:      ndviIndex,
+				RadiationIndex: radiationIndex,
+			}
+			switch s := sat.(type) {
+			case *satellites.EaSatellite:
+				m.SpecificMeasurement = fmt.Sprintf("%f", s.Altitudes[i])
+			case *satellites.SsSatellite:
+				m.SpecificMeasurement = fmt.Sprintf("%f", s.SeaSalinities[i])
+			case *satellites.VcSatellite:
+				m.SpecificMeasurement = s.Vegetations[i]
+			}
+
+			err = mysqlDb.AddMeasurement(m)
+
+			err = database.HandleSqlError(err)
+			if err != nil {
+				ctxlog.WithFields(log.Fields{"status": "failed", "error": err}).Fatal("Unable to insert measurement into database")
+			}
 		}
 
-		m := &database.Measurement{
-			FileName:            filename,
-			IdSat:               idSat,
-			Timestamp:           row[1],
-			IonoIndex:           ionoIndex,
-			NdviIndex:           ndviIndex,
-			RadiationIndex:      radiationIndex,
-			SpecificMeasurement: row[5],
-		}
-		err = mysqlDb.AddMeasurement(m)
-
-		err = database.HandleSqlError(err)
-		if err != nil {
-			ctxlog.WithFields(log.Fields{"status": "failed", "error": err}).Fatal("Unable to insert measurement into database")
-		}
 	}
 
 	for name, sat := range sats {
