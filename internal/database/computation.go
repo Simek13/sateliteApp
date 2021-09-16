@@ -1,5 +1,12 @@
 package database
 
+import (
+	"fmt"
+
+	"github.com/Simek13/satelliteApp/internal/satellites"
+	"github.com/pkg/errors"
+)
+
 type Computation struct {
 	Id       int     `db:"id" goqu:"skipinsert, skipupdate"`
 	IdSat    int     `db:"idSat"`
@@ -20,7 +27,7 @@ type Computation struct {
 
 const computationTable = "computations"
 
-func (d *MySQLDatabase) AddComputations(c *Computation) error {
+func (d *MySQLDatabase) AddComputation(c *Computation) error {
 	tx, err := d.Begin()
 	if err != nil {
 		return err
@@ -37,4 +44,45 @@ func (d *MySQLDatabase) AddComputations(c *Computation) error {
 		}
 		return nil
 	})
+}
+
+func (d *MySQLDatabase) AddComputations(sats map[string]satellites.Satellite) error {
+	for name, sat := range sats {
+		idSat, err := d.GetSatelliteId(name)
+		if err != nil {
+			return err
+		}
+		bSat := sat.GetSatellite()
+		c := &Computation{
+			IdSat:    idSat,
+			Duration: fmt.Sprint(bSat.Duration),
+			MaxIono:  bSat.IonoCalc[0],
+			MinIono:  bSat.IonoCalc[1],
+			AvgIono:  bSat.IonoCalc[2],
+			MaxNdvi:  bSat.NdviCalc[0],
+			MinNdvi:  bSat.NdviCalc[1],
+			AvgNdvi:  bSat.NdviCalc[2],
+			MaxRad:   bSat.RadiationCalc[0],
+			MinRad:   bSat.RadiationCalc[1],
+			AvgRad:   bSat.RadiationCalc[2],
+		}
+		switch s := sat.(type) {
+		case *satellites.EaSatellite:
+			c.MaxSpec = s.AltitudesCalc[0]
+			c.MinSpec = s.AltitudesCalc[1]
+			c.AvgSpec = s.AltitudesCalc[2]
+		case *satellites.SsSatellite:
+			c.MaxSpec = s.SalinitiesCalc[0]
+			c.MinSpec = s.SalinitiesCalc[1]
+			c.AvgSpec = s.SalinitiesCalc[2]
+		case *satellites.VcSatellite:
+		}
+		err = d.AddComputation(c)
+
+		err = HandleSqlError(err)
+		if err != nil {
+			return errors.Wrap(err, "Unable to insert computation into database")
+		}
+	}
+	return nil
 }

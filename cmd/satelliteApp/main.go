@@ -6,12 +6,10 @@ import (
 	"net"
 	"strconv"
 	"strings"
-	"time"
 
+	"github.com/Simek13/satelliteApp/internal/app"
 	"github.com/Simek13/satelliteApp/internal/csv"
 	"github.com/Simek13/satelliteApp/internal/database"
-	"github.com/Simek13/satelliteApp/internal/satellites"
-	"github.com/Simek13/satelliteApp/internal/sort"
 
 	"github.com/doug-martin/goqu/v9"
 	"github.com/namsral/flag"
@@ -92,70 +90,6 @@ func main() {
 		ctxlog.WithFields(log.Fields{"status": "failed", "error": err}).Fatal("Error parsing csv data")
 	}
 
-	// Date
-	for _, sat := range sats {
-		fmt.Println(sat.GetSatellite().Id, "-", sat.MeasurementTime())
-	}
-
-	fmt.Println()
-
-	ionoAvg := make(map[string]float64)
-	NDVIAvg := make(map[string]float64)
-	radAvg := make(map[string]float64)
-	altAvg := make(map[string]float64)
-	salAvg := make(map[string]float64)
-
-	// kako ovo raščlaniti na funkcije koje rade samo jednu stvar
-	for id, sat := range sats {
-
-		fmt.Println("Satellite: ", id)
-		ionoCalc, ndviCalc, radCalc, specCalc := sat.Compute()
-		fmt.Println("Ionosphere index:", ionoCalc[0], "(MIN)", ionoCalc[1], "(MAX)", ionoCalc[2], "(AVG)")
-		ionoAvg[id] = ionoCalc[2]
-		fmt.Println("NDVI index:", ndviCalc[0], "(MIN)", ndviCalc[1], "(MAX)", ndviCalc[2], "(AVG)")
-		NDVIAvg[id] = ndviCalc[2]
-		fmt.Println("Radiation index:", radCalc[0], "(MIN)", radCalc[1], "(MAX)", radCalc[2], "(AVG)")
-		radAvg[id] = radCalc[2]
-		switch sat.(type) {
-		case *satellites.EaSatellite:
-			fmt.Println("Earth altitude:", specCalc[0], "(MIN)", specCalc[1], "(MAX)", specCalc[2], "(AVG)")
-			altAvg[id] = specCalc[2]
-		case *satellites.SsSatellite:
-			fmt.Println("Sea salinity index:", specCalc[0], "(MIN)", specCalc[1], "(MAX)", specCalc[2], "(AVG)")
-			salAvg[id] = specCalc[2]
-		}
-
-		fmt.Println()
-
-	}
-
-	fmt.Println("@Ionosphere index:")
-	for _, ss := range sort.Sort(ionoAvg) {
-		fmt.Println(ss)
-	}
-
-	fmt.Println("@NDVI index:")
-	for _, ss := range sort.Sort(NDVIAvg) {
-		fmt.Println(ss)
-	}
-
-	fmt.Println("@Radiation index:")
-	for _, ss := range sort.Sort(radAvg) {
-		fmt.Println(ss)
-	}
-
-	fmt.Println("@Earth altitude:")
-	for _, ss := range sort.Sort(altAvg) {
-		fmt.Println(ss)
-	}
-
-	fmt.Println("@Sea salinity:")
-	for _, ss := range sort.Sort(salAvg) {
-		fmt.Println(ss)
-	}
-
-	// store data to db
-
 	dbBaseUrl := fmt.Sprintf("%s:%s@tcp(%s:%s)/", cfg.dbUser, cfg.dbPass, cfg.dbHost, cfg.dbPort)
 	// create db
 	/* db, err := database.Create(dbBaseUrl, cfg.dbName, cfg.dbType)
@@ -163,108 +97,17 @@ func main() {
 		fmt.Println("error in db while checking: %w", err)
 	} */
 
-	// open database
 	dbUrl := dbBaseUrl + cfg.dbName
 	db, err := sql.Open(cfg.dbType, dbUrl)
-	gdb := goqu.New(cfg.dbType, db)
-	mysqlDb := &database.MySQLDatabase{gdb}
-
 	if err != nil {
 		ctxlog.WithFields(log.Fields{"status": "failed", "error": err}).Fatal("Error opening database")
 	}
-
-	defer db.Close()
+	gdb := goqu.New(cfg.dbType, db)
+	mysqlDb := &database.MySQLDatabase{gdb}
 
 	fmt.Println("Successfully Connected to MySQL database")
+	defer db.Close()
 
-	for name := range sats {
-		s := &database.Satellite{Name: name}
-		err := mysqlDb.AddSatellite(s)
-
-		err = database.HandleSqlError(err)
-		if err != nil {
-			ctxlog.WithFields(log.Fields{"status": "failed", "error": err}).Fatal("Unable to insert satellite into database")
-		}
-	}
-
-	for name, sat := range sats {
-
-		bSat := sat.GetSatellite()
-		idSat, err := mysqlDb.GetSatelliteId(name)
-		if err != nil {
-			ctxlog.WithFields(log.Fields{"status": "failed", "error": err}).Fatal(errors.Unwrap(err))
-		}
-		var timestamp time.Time
-		var ionoIndex, ndviIndex, radiationIndex float64
-		for i, _ := range sat.GetSatellite().Timestamps {
-			timestamp = bSat.Timestamps[i]
-			ionoIndex = bSat.IonoIndexes[i]
-			ndviIndex = bSat.NdviIndexes[i]
-			radiationIndex = bSat.RadiationIndexes[i]
-
-			m := &database.Measurement{
-				FileName:       filename,
-				IdSat:          idSat,
-				Timestamp:      timestamp.String(),
-				IonoIndex:      ionoIndex,
-				NdviIndex:      ndviIndex,
-				RadiationIndex: radiationIndex,
-			}
-			switch s := sat.(type) {
-			case *satellites.EaSatellite:
-				m.SpecificMeasurement = fmt.Sprintf("%f", s.Altitudes[i])
-			case *satellites.SsSatellite:
-				m.SpecificMeasurement = fmt.Sprintf("%f", s.SeaSalinities[i])
-			case *satellites.VcSatellite:
-				m.SpecificMeasurement = s.Vegetations[i]
-			}
-
-			err = mysqlDb.AddMeasurement(m)
-
-			err = database.HandleSqlError(err)
-			if err != nil {
-				ctxlog.WithFields(log.Fields{"status": "failed", "error": err}).Fatal("Unable to insert measurement into database")
-			}
-		}
-
-	}
-
-	for name, sat := range sats {
-		idSat, err := mysqlDb.GetSatelliteId(name)
-		if err != nil {
-			ctxlog.WithFields(log.Fields{"status": "failed", "error": err}).Fatal(errors.Unwrap(err))
-		}
-		bSat := sat.GetSatellite()
-		c := &database.Computation{
-			IdSat:    idSat,
-			Duration: fmt.Sprint(bSat.Duration),
-			MaxIono:  bSat.IonoCalc[0],
-			MinIono:  bSat.IonoCalc[1],
-			AvgIono:  bSat.IonoCalc[2],
-			MaxNdvi:  bSat.NdviCalc[0],
-			MinNdvi:  bSat.NdviCalc[1],
-			AvgNdvi:  bSat.NdviCalc[2],
-			MaxRad:   bSat.RadiationCalc[0],
-			MinRad:   bSat.RadiationCalc[1],
-			AvgRad:   bSat.RadiationCalc[2],
-		}
-		switch s := sat.(type) {
-		case *satellites.EaSatellite:
-			c.MaxSpec = s.AltitudesCalc[0]
-			c.MinSpec = s.AltitudesCalc[1]
-			c.AvgSpec = s.AltitudesCalc[2]
-		case *satellites.SsSatellite:
-			c.MaxSpec = s.SalinitiesCalc[0]
-			c.MinSpec = s.SalinitiesCalc[1]
-			c.AvgSpec = s.SalinitiesCalc[2]
-		case *satellites.VcSatellite:
-		}
-		err = mysqlDb.AddComputations(c)
-
-		err = database.HandleSqlError(err)
-		if err != nil {
-			ctxlog.WithFields(log.Fields{"status": "failed", "error": err}).Fatal("Unable to insert computation into database")
-		}
-	}
+	app.Run(filename, sats, mysqlDb)
 
 }

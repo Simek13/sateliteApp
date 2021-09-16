@@ -1,6 +1,7 @@
 package database
 
 import (
+	"github.com/Simek13/satelliteApp/internal/satellites"
 	"github.com/doug-martin/goqu/v9"
 	"github.com/pkg/errors"
 )
@@ -55,4 +56,17 @@ func (d *MySQLDatabase) GetSatelliteId(name string) (int, error) {
 	}
 
 	return idSat, nil
+}
+
+func (d *MySQLDatabase) AddSatellites(sats map[string]satellites.Satellite) error {
+	for name := range sats {
+		s := &Satellite{Name: name}
+		err := d.AddSatellite(s)
+
+		err = HandleSqlError(err)
+		if err != nil {
+			return errors.Wrap(err, "Unable to insert satellite into database")
+		}
+	}
+	return nil
 }

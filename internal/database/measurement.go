@@ -1,5 +1,13 @@
 package database
 
+import (
+	"fmt"
+	"time"
+
+	"github.com/Simek13/satelliteApp/internal/satellites"
+	"github.com/pkg/errors"
+)
+
 type Measurement struct {
 	Id                  int     `db:"id" goqu:"skipinsert, skipupdate"`
 	FileName            string  `db:"filename"`
@@ -30,4 +38,49 @@ func (d *MySQLDatabase) AddMeasurement(m *Measurement) error {
 		}
 		return nil
 	})
+}
+
+func (d *MySQLDatabase) AddMeasurements(filename string, sats map[string]satellites.Satellite) error {
+	for name, sat := range sats {
+
+		bSat := sat.GetSatellite()
+		idSat, err := d.GetSatelliteId(name)
+		if err != nil {
+			return err
+		}
+		var timestamp time.Time
+		var ionoIndex, ndviIndex, radiationIndex float64
+		for i := range sat.GetSatellite().Timestamps {
+			timestamp = bSat.Timestamps[i]
+			ionoIndex = bSat.IonoIndexes[i]
+			ndviIndex = bSat.NdviIndexes[i]
+			radiationIndex = bSat.RadiationIndexes[i]
+
+			m := &Measurement{
+				FileName:       filename,
+				IdSat:          idSat,
+				Timestamp:      timestamp.String(),
+				IonoIndex:      ionoIndex,
+				NdviIndex:      ndviIndex,
+				RadiationIndex: radiationIndex,
+			}
+			switch s := sat.(type) {
+			case *satellites.EaSatellite:
+				m.SpecificMeasurement = fmt.Sprintf("%f", s.Altitudes[i])
+			case *satellites.SsSatellite:
+				m.SpecificMeasurement = fmt.Sprintf("%f", s.SeaSalinities[i])
+			case *satellites.VcSatellite:
+				m.SpecificMeasurement = s.Vegetations[i]
+			}
+
+			err = d.AddMeasurement(m)
+
+			err = HandleSqlError(err)
+			if err != nil {
+				return errors.Wrap(err, "Unable to insert measurement into database")
+			}
+		}
+
+	}
+	return nil
 }
