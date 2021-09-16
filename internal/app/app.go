@@ -53,15 +53,21 @@ func Run(filename string, sats map[string]satellites.Satellite, mysqlDb *databas
 	err := mysqlDb.AddSatellites(sats)
 	if err != nil {
 		ctxlog.WithFields(log.Fields{"status": "failed", "error": err}).Fatal(errors.Unwrap(err))
+	} else {
+		ctxlog.WithFields(log.Fields{"status": "success", "event": "Successfully written satellites to db."}).Info()
 	}
 
 	err = mysqlDb.AddMeasurements(filename, sats)
 	if err != nil {
 		ctxlog.WithFields(log.Fields{"status": "failed", "error": err}).Fatal(errors.Unwrap(err))
+	} else {
+		ctxlog.WithFields(log.Fields{"status": "success", "event": "Successfully written measurements to db."}).Info()
 	}
 
 	err = mysqlDb.AddComputations(sats)
 	if err != nil {
 		ctxlog.WithFields(log.Fields{"status": "failed", "error": err}).Fatal(errors.Unwrap(err))
+	} else {
+		ctxlog.WithFields(log.Fields{"status": "success", "event": "Successfully written computations to db."}).Info()
 	}
 }
