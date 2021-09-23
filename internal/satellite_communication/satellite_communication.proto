@@ -1,0 +1,55 @@
+syntax = "proto3";
+
+option go_package="github.com/Simek13/satelliteApp/internal/satellitecommunication";
+
+package satellitecommunication;
+
+service SatelliteCommunication {
+
+    rpc GetMeasurements(SatelliteFilter) returns (MeasurementResponse) {}
+
+    rpc GetComputations(SatelliteFilter) returns (ComputationResponse) {}
+}
+
+
+message SatelliteFilter {
+    string name = 1;
+}
+
+message Measurement {
+    int32 id = 1;
+    string fileName = 2;
+    int32 idSat = 3;
+    string timestamp = 4;
+    float ionoIndex = 5;
+    float ndviIndex = 6;
+    float radiationIndex = 7;
+    string specificMeasurement = 8;
+}
+
+message Computation {
+    int32 id = 1;
+    int32 idSat = 2;
+    string duration = 3;
+    float maxIono = 4;
+    float minIono = 5;
+    float avgIono = 6;
+    float maxNdvi = 7;
+    float minNdvi = 8;
+    float avgNdvi = 9;
+    float maxRad = 10;
+    float minRad = 11;
+    float avgRad = 12;
+    float maxSpec = 13;
+    float minSpec = 14;
+    float avgSpec = 15;
+}
+
+message MeasurementResponse {
+    repeated Measurement measurements = 1;
+}
+
+
+message ComputationResponse {
+    repeated Computation computations = 1;
+}

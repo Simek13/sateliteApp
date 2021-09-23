@@ -4,9 +4,13 @@ import (
 	"fmt"
 	"time"
 
+	pb "github.com/Simek13/satelliteApp/internal/satellite_communication"
 	"github.com/Simek13/satelliteApp/internal/satellites"
+	"github.com/doug-martin/goqu/v9"
 	"github.com/pkg/errors"
 )
+
+const measurementTable = "measurements"
 
 type Measurement struct {
 	Id                  int     `db:"id" goqu:"skipinsert, skipupdate"`
@@ -19,7 +23,45 @@ type Measurement struct {
 	SpecificMeasurement string  `db:"specificMeasurement"`
 }
 
-const measurementTable = "measurements"
+func (m *Measurement) Protobuf() *pb.Measurement {
+	if m == nil {
+		return nil
+	}
+
+	measurement := &pb.Measurement{
+		Id:                  int32(m.Id),
+		FileName:            m.FileName,
+		IdSat:               int32(m.IdSat),
+		Timestamp:           m.Timestamp,
+		IonoIndex:           float32(m.IonoIndex),
+		NdviIndex:           float32(m.NdviIndex),
+		RadiationIndex:      float32(m.RadiationIndex),
+		SpecificMeasurement: m.SpecificMeasurement,
+	}
+	return measurement
+}
+
+func NewMeasurement(m *pb.Measurement) *Measurement {
+	if m == nil {
+		return nil
+	}
+	measurement := &Measurement{
+		Id:                  int(m.Id),
+		FileName:            m.FileName,
+		IdSat:               int(m.IdSat),
+		Timestamp:           m.Timestamp,
+		IonoIndex:           float64(m.IonoIndex),
+		NdviIndex:           float64(m.NdviIndex),
+		RadiationIndex:      float64(m.RadiationIndex),
+		SpecificMeasurement: m.SpecificMeasurement,
+	}
+	return measurement
+}
+
+func (m Measurement) String() string {
+	return fmt.Sprintf("Id: %v, Filename: %s, IdSat: %v, Timestamp: %s, IonoIndex: %v, NdviIndex: %v, RadiationIndex: %v, SpecificMeasurement: %s",
+		m.Id, m.FileName, m.IdSat, m.Timestamp, m.IonoIndex, m.NdviIndex, m.RadiationIndex, m.SpecificMeasurement)
+}
 
 func (d *MySQLDatabase) AddMeasurement(m *Measurement) error {
 	tx, err := d.Begin()
@@ -83,4 +125,43 @@ func (d *MySQLDatabase) AddMeasurements(filename string, sats map[string]satelli
 
 	}
 	return nil
+}
+
+func (d *MySQLDatabase) GetMeasurements(satName string) ([]Measurement, error) {
+	var satId int
+	var sql string
+	var err error
+	if satName != "" {
+		satId, err = d.GetSatelliteId(satName)
+		if err != nil {
+			return nil, errors.Wrap(err, "Invalid satellite name")
+		}
+		sql, _, err = d.From(measurementTable).Where(goqu.C("idSat").Eq(satId)).ToSQL()
+	} else {
+		sql, _, err = d.From(measurementTable).ToSQL()
+	}
+
+	if err != nil {
+		return nil, errors.Wrap(err, "Error generating sql")
+	}
+	rows, err := d.Query(sql)
+	if err != nil {
+		return nil, errors.Wrap(err, "Error executing sql query")
+	}
+	defer rows.Close()
+	measurements := make([]Measurement, 0)
+	for rows.Next() {
+		var m Measurement
+		err := rows.Scan(&m.Id, &m.FileName, &m.IdSat, &m.Timestamp, &m.IonoIndex, &m.NdviIndex, &m.RadiationIndex, &m.SpecificMeasurement)
+		if err != nil {
+			return nil, errors.Wrap(err, "Error scanning rows")
+		}
+		measurements = append(measurements, m)
+	}
+	err = rows.Err()
+	if err != nil {
+		return nil, errors.Wrap(err, "Error scanning rows")
+	}
+
+	return measurements, nil
 }
