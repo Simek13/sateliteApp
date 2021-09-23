@@ -1,4 +1,5 @@
 MIGRATIONS_FOLDER:="assets/migrations"
+PROTOBUF_FOLDER:="internal/satellite_communication/satellite_communication.proto"
 USER:= root
 PASSWORD:= emis
 MYSQLHOST:=localhost
@@ -55,3 +56,12 @@ lint-deps: ## get linter for testing
 .PHONY: lint
 lint: lint-deps ## get linter for testing
 	staticcheck ./...
+
+################################################################################
+# PROTOBUF
+################################################################################
+
+.PHONY: pb-gen
+pb-gen: PROTOBUF_BIN:="protoc"
+pb-gen: 
+	$(PROTOBUF_BIN) --go_out=. --go_opt=paths=source_relative --go-grpc_out=. --go-grpc_opt=paths=source_relative $(PROTOBUF_FOLDER)
