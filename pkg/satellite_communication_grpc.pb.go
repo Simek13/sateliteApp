@@ -20,6 +20,9 @@ const _ = grpc.SupportPackageIsVersion7
 type SatelliteCommunicationClient interface {
 	GetMeasurements(ctx context.Context, in *SatelliteFilter, opts ...grpc.CallOption) (*MeasurementResponse, error)
 	GetComputations(ctx context.Context, in *SatelliteFilter, opts ...grpc.CallOption) (*ComputationResponse, error)
+	AddSatellite(ctx context.Context, in *Satellite, opts ...grpc.CallOption) (*Satellite, error)
+	AddMeasurement(ctx context.Context, in *Measurement, opts ...grpc.CallOption) (*Measurement, error)
+	AddComputation(ctx context.Context, in *Computation, opts ...grpc.CallOption) (*Computation, error)
 }
 
 type satelliteCommunicationClient struct {
@@ -48,12 +51,42 @@ func (c *satelliteCommunicationClient) GetComputations(ctx context.Context, in *
 	return out, nil
 }
 
+func (c *satelliteCommunicationClient) AddSatellite(ctx context.Context, in *Satellite, opts ...grpc.CallOption) (*Satellite, error) {
+	out := new(Satellite)
+	err := c.cc.Invoke(ctx, "/satellitecommunication.SatelliteCommunication/AddSatellite", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *satelliteCommunicationClient) AddMeasurement(ctx context.Context, in *Measurement, opts ...grpc.CallOption) (*Measurement, error) {
+	out := new(Measurement)
+	err := c.cc.Invoke(ctx, "/satellitecommunication.SatelliteCommunication/AddMeasurement", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *satelliteCommunicationClient) AddComputation(ctx context.Context, in *Computation, opts ...grpc.CallOption) (*Computation, error) {
+	out := new(Computation)
+	err := c.cc.Invoke(ctx, "/satellitecommunication.SatelliteCommunication/AddComputation", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // SatelliteCommunicationServer is the server API for SatelliteCommunication service.
 // All implementations must embed UnimplementedSatelliteCommunicationServer
 // for forward compatibility
 type SatelliteCommunicationServer interface {
 	GetMeasurements(context.Context, *SatelliteFilter) (*MeasurementResponse, error)
 	GetComputations(context.Context, *SatelliteFilter) (*ComputationResponse, error)
+	AddSatellite(context.Context, *Satellite) (*Satellite, error)
+	AddMeasurement(context.Context, *Measurement) (*Measurement, error)
+	AddComputation(context.Context, *Computation) (*Computation, error)
 	mustEmbedUnimplementedSatelliteCommunicationServer()
 }
 
@@ -66,6 +99,15 @@ func (UnimplementedSatelliteCommunicationServer) GetMeasurements(context.Context
 }
 func (UnimplementedSatelliteCommunicationServer) GetComputations(context.Context, *SatelliteFilter) (*ComputationResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetComputations not implemented")
+}
+func (UnimplementedSatelliteCommunicationServer) AddSatellite(context.Context, *Satellite) (*Satellite, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method AddSatellite not implemented")
+}
+func (UnimplementedSatelliteCommunicationServer) AddMeasurement(context.Context, *Measurement) (*Measurement, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method AddMeasurement not implemented")
+}
+func (UnimplementedSatelliteCommunicationServer) AddComputation(context.Context, *Computation) (*Computation, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method AddComputation not implemented")
 }
 func (UnimplementedSatelliteCommunicationServer) mustEmbedUnimplementedSatelliteCommunicationServer() {
 }
@@ -117,6 +159,60 @@ func _SatelliteCommunication_GetComputations_Handler(srv interface{}, ctx contex
 	return interceptor(ctx, in, info, handler)
 }
 
+func _SatelliteCommunication_AddSatellite_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(Satellite)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SatelliteCommunicationServer).AddSatellite(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/satellitecommunication.SatelliteCommunication/AddSatellite",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SatelliteCommunicationServer).AddSatellite(ctx, req.(*Satellite))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _SatelliteCommunication_AddMeasurement_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(Measurement)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SatelliteCommunicationServer).AddMeasurement(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/satellitecommunication.SatelliteCommunication/AddMeasurement",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SatelliteCommunicationServer).AddMeasurement(ctx, req.(*Measurement))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _SatelliteCommunication_AddComputation_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(Computation)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SatelliteCommunicationServer).AddComputation(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/satellitecommunication.SatelliteCommunication/AddComputation",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SatelliteCommunicationServer).AddComputation(ctx, req.(*Computation))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // SatelliteCommunication_ServiceDesc is the grpc.ServiceDesc for SatelliteCommunication service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -131,6 +227,18 @@ var SatelliteCommunication_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetComputations",
 			Handler:    _SatelliteCommunication_GetComputations_Handler,
+		},
+		{
+			MethodName: "AddSatellite",
+			Handler:    _SatelliteCommunication_AddSatellite_Handler,
+		},
+		{
+			MethodName: "AddMeasurement",
+			Handler:    _SatelliteCommunication_AddMeasurement_Handler,
+		},
+		{
+			MethodName: "AddComputation",
+			Handler:    _SatelliteCommunication_AddComputation_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

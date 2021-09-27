@@ -68,6 +68,38 @@ func (s *satelliteCommunicationServer) GetComputations(ctx context.Context, filt
 	return computationResponse, nil
 }
 
+func (s *satelliteCommunicationServer) AddSatellite(ctx context.Context, rq *pb.Satellite) (*pb.Satellite, error) {
+	fmt.Println("Server side, adding satellite:", rq.Name)
+	satellite := database.NewSatellite(rq)
+	err := s.db.AddSatellite(satellite)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "Cannot add given satellite: %v", err)
+	}
+
+	return rq, nil
+}
+
+func (s *satelliteCommunicationServer) AddMeasurement(ctx context.Context, rq *pb.Measurement) (*pb.Measurement, error) {
+	fmt.Println(rq)
+	measurement := database.NewMeasurement(rq)
+	err := s.db.AddMeasurement(measurement)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "Cannot add given measurement: %v", err)
+	}
+
+	return rq, nil
+}
+
+func (s *satelliteCommunicationServer) AddComputation(ctx context.Context, rq *pb.Computation) (*pb.Computation, error) {
+	computation := database.NewComputation(rq)
+	err := s.db.AddComputation(computation)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "Cannot add given computation")
+	}
+
+	return rq, nil
+}
+
 func validate() (err error) {
 	if cfg.dbType != "mysql" && cfg.dbType != "postgres" && cfg.dbType != "sqlite3" && cfg.dbType != "sqlserver" {
 		return errors.New("invalid db type")

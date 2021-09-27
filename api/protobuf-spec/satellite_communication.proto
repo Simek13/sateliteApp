@@ -19,6 +19,32 @@ service SatelliteCommunication {
             get: "/computations/{satId}"
         };
     }
+
+    rpc AddSatellite(Satellite) returns (Satellite) {
+        option (google.api.http) = {
+            post: "/satellites"
+            body: "*"
+        };
+    }
+
+    rpc AddMeasurement(Measurement) returns (Measurement) {
+        option (google.api.http) = {
+            post: "/measurements"
+            body: "*"
+        };
+    }
+
+    rpc AddComputation(Computation) returns (Computation) {
+        option (google.api.http) = {
+            post: "/computations"
+            body: "*"
+        };
+    }
+}
+
+message Satellite {
+    int32 id = 1;
+    string name = 2;
 }
 
 message SatelliteFilter {

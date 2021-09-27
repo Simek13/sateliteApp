@@ -68,6 +68,7 @@ func (d *MySQLDatabase) AddMeasurement(m *Measurement) error {
 	if err != nil {
 		return err
 	}
+	fmt.Println(m)
 
 	return tx.Wrap(func() error {
 

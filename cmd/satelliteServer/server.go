@@ -37,6 +37,17 @@ type satelliteCommunicationServer struct {
 	db *database.MySQLDatabase
 }
 
+func (s *satelliteCommunicationServer) AddSatellite(ctx context.Context, rq *pb.Satellite) (*pb.Satellite, error) {
+	fmt.Println(rq)
+	satellite := database.NewSatellite(rq)
+	err := s.db.AddSatellite(satellite)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "Cannot add given satellite: %v", err)
+	}
+
+	return rq, nil
+}
+
 func (s *satelliteCommunicationServer) GetMeasurements(ctx context.Context, filter *pb.SatelliteFilter) (*pb.MeasurementResponse, error) {
 	measurements, err := s.db.GetMeasurements(int(filter.GetSatId()))
 	if err != nil {
@@ -49,6 +60,17 @@ func (s *satelliteCommunicationServer) GetMeasurements(ctx context.Context, filt
 
 	return &pb.MeasurementResponse{Measurements: pbMeasurements}, nil
 
+}
+
+func (s *satelliteCommunicationServer) AddMeasurement(ctx context.Context, rq *pb.Measurement) (*pb.Measurement, error) {
+	fmt.Println(rq)
+	measurement := database.NewMeasurement(rq)
+	err := s.db.AddMeasurement(measurement)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "Cannot add given measurement: %v", err)
+	}
+
+	return rq, nil
 }
 
 func (s *satelliteCommunicationServer) GetComputations(ctx context.Context, filter *pb.SatelliteFilter) (*pb.ComputationResponse, error) {
@@ -64,6 +86,16 @@ func (s *satelliteCommunicationServer) GetComputations(ctx context.Context, filt
 	computationResponse := &pb.ComputationResponse{Computations: pbComputations}
 
 	return computationResponse, nil
+}
+
+func (s *satelliteCommunicationServer) AddComputation(ctx context.Context, rq *pb.Computation) (*pb.Computation, error) {
+	computation := database.NewComputation(rq)
+	err := s.db.AddComputation(computation)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "Cannot add given computation")
+	}
+
+	return rq, nil
 }
 
 func validate() (err error) {

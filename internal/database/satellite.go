@@ -2,6 +2,7 @@ package database
 
 import (
 	"github.com/Simek13/satelliteApp/internal/satellites"
+	pb "github.com/Simek13/satelliteApp/pkg"
 	"github.com/doug-martin/goqu/v9"
 	"github.com/pkg/errors"
 )
@@ -12,6 +13,29 @@ type Satellite struct {
 }
 
 const satelliteTable = "satellites"
+
+func (s *Satellite) Protobuf() *pb.Satellite {
+	if s == nil {
+		return nil
+	}
+
+	satellite := &pb.Satellite{
+		Id:   int32(s.Id),
+		Name: s.Name,
+	}
+	return satellite
+}
+
+func NewSatellite(s *pb.Satellite) *Satellite {
+	if s == nil {
+		return nil
+	}
+	satellite := &Satellite{
+		Id:   int(s.Id),
+		Name: s.Name,
+	}
+	return satellite
+}
 
 func (d *MySQLDatabase) AddSatellite(s *Satellite) error {
 	tx, err := d.Begin()

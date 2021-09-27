@@ -90,3 +90,6 @@ proto: proto-deps ## generate go gRPC libraries from the proto files
 
 	protoc -I $(PROTO_GOOGLE)  \
 	--grpc-gateway_out=./pkg --grpc-gateway_opt=logtostderr=true --grpc-gateway_opt=paths=source_relative --proto_path=api/protobuf-spec satellite_communication.proto
+
+	protoc -I $(PROTO_GOOGLE)  \
+	--openapiv2_out ./pkg --openapiv2_opt logtostderr=true --proto_path=api/protobuf-spec satellite_communication.proto
