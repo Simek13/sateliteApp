@@ -45,13 +45,18 @@ func (d *MySQLDatabase) AddSatellite(s *Satellite) error {
 
 	return tx.Wrap(func() error {
 
-		_, err := tx.Insert(satelliteTable).
+		result, err := tx.Insert(satelliteTable).
 			Prepared(true).
 			Rows(s).Executor().
 			Exec()
 		if err != nil {
 			return err
 		}
+		id, err := result.LastInsertId()
+		if err != nil {
+			return err
+		}
+		s.Id = int(id)
 		return nil
 	})
 }

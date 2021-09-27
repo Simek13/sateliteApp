@@ -76,7 +76,7 @@ func (s *satelliteCommunicationServer) AddSatellite(ctx context.Context, rq *pb.
 		return nil, status.Errorf(codes.InvalidArgument, "Cannot add given satellite: %v", err)
 	}
 
-	return rq, nil
+	return satellite.Protobuf(), nil
 }
 
 func (s *satelliteCommunicationServer) AddMeasurement(ctx context.Context, rq *pb.Measurement) (*pb.Measurement, error) {
@@ -87,7 +87,7 @@ func (s *satelliteCommunicationServer) AddMeasurement(ctx context.Context, rq *p
 		return nil, status.Errorf(codes.InvalidArgument, "Cannot add given measurement: %v", err)
 	}
 
-	return rq, nil
+	return measurement.Protobuf(), nil
 }
 
 func (s *satelliteCommunicationServer) AddComputation(ctx context.Context, rq *pb.Computation) (*pb.Computation, error) {
@@ -97,7 +97,7 @@ func (s *satelliteCommunicationServer) AddComputation(ctx context.Context, rq *p
 		return nil, status.Errorf(codes.InvalidArgument, "Cannot add given computation")
 	}
 
-	return rq, nil
+	return computation.Protobuf(), nil
 }
 
 func validate() (err error) {

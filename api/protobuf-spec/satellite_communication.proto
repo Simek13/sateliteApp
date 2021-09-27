@@ -14,6 +14,12 @@ service SatelliteCommunication {
         };
     }
 
+    rpc GetMeasurementsBetween(SatelliteFilter) returns (MeasurementResponse) {
+        option (google.api.http) = {
+            get: "/measurements/{satId}"
+        };
+    }
+
     rpc GetComputations(SatelliteFilter) returns (ComputationResponse) {
         option (google.api.http) = {
             get: "/computations/{satId}"
@@ -40,6 +46,11 @@ service SatelliteCommunication {
             body: "*"
         };
     }
+}
+
+message TimestampFilter {
+    string startTime = 1;
+    string endTime = 2;
 }
 
 message Satellite {

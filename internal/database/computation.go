@@ -91,13 +91,18 @@ func (d *MySQLDatabase) AddComputation(c *Computation) error {
 
 	return tx.Wrap(func() error {
 
-		_, err := tx.Insert(computationTable).
+		result, err := tx.Insert(computationTable).
 			Prepared(true).
 			Rows(c).Executor().
 			Exec()
 		if err != nil {
 			return err
 		}
+		id, err := result.LastInsertId()
+		if err != nil {
+			return err
+		}
+		c.Id = int(id)
 		return nil
 	})
 }

@@ -72,13 +72,18 @@ func (d *MySQLDatabase) AddMeasurement(m *Measurement) error {
 
 	return tx.Wrap(func() error {
 
-		_, err := tx.Insert(measurementTable).
+		result, err := tx.Insert(measurementTable).
 			Prepared(true).
 			Rows(m).Executor().
 			Exec()
 		if err != nil {
 			return err
 		}
+		id, err := result.LastInsertId()
+		if err != nil {
+			return err
+		}
+		m.Id = int(id)
 		return nil
 	})
 }
