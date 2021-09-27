@@ -134,5 +134,5 @@ var SatelliteCommunication_ServiceDesc = grpc.ServiceDesc{
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
-	Metadata: "internal/satellite_communication/satellite_communication.proto",
+	Metadata: "satellite_communication.proto",
 }

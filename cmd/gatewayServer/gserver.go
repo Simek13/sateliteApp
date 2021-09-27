@@ -7,14 +7,16 @@ import (
 	"flag"
 	"fmt"
 	"net"
+	"net/http"
 	"strconv"
 
-	"github.com/Simek13/satelliteApp/internal/database"
 	"github.com/doug-martin/goqu/v9"
+	"github.com/grpc-ecosystem/grpc-gateway/runtime"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
+	"github.com/Simek13/satelliteApp/internal/database"
 	pb "github.com/Simek13/satelliteApp/pkg"
 	_ "github.com/doug-martin/goqu/v9/dialect/mysql"
 	log "github.com/sirupsen/logrus"
@@ -40,7 +42,7 @@ type satelliteCommunicationServer struct {
 func (s *satelliteCommunicationServer) GetMeasurements(ctx context.Context, filter *pb.SatelliteFilter) (*pb.MeasurementResponse, error) {
 	measurements, err := s.db.GetMeasurements(int(filter.GetSatId()))
 	if err != nil {
-		return nil, status.Errorf(codes.NotFound, "Computations for satellite: %q could not be found", filter.GetSatId())
+		return nil, status.Errorf(codes.NotFound, "Measurements for satellite: %q could not be found", filter.GetSatId())
 	}
 	pbMeasurements := make([]*pb.Measurement, 0)
 	for _, m := range measurements {
@@ -54,7 +56,7 @@ func (s *satelliteCommunicationServer) GetMeasurements(ctx context.Context, filt
 func (s *satelliteCommunicationServer) GetComputations(ctx context.Context, filter *pb.SatelliteFilter) (*pb.ComputationResponse, error) {
 	computations, err := s.db.GetComputations(int(filter.GetSatId()))
 	if err != nil {
-		return nil, status.Errorf(codes.NotFound, "Computations for satellite: %q could not be found", filter.GetSatId())
+		return nil, status.Errorf(codes.NotFound, "Computations for satellite: %q could not be found. %s", filter.GetSatId(), errors.Unwrap(err))
 	}
 	pbComputations := make([]*pb.Computation, 0)
 	for _, c := range computations {
@@ -97,9 +99,24 @@ func validate() (err error) {
 	return nil
 }
 
+func run() error {
+
+	ctx := context.Background()
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	opts := []grpc.DialOption{grpc.WithInsecure()}
+	gwmux := runtime.NewServeMux()
+	err := pb.RegisterSatelliteCommunicationHandlerFromEndpoint(ctx, gwmux, "localhost"+cfg.serverPort, opts)
+	if err != nil {
+		return err
+	}
+	return http.ListenAndServe(":9090", gwmux)
+}
+
 func main() {
 	ctxlog := log.WithFields(log.Fields{"event": "server"})
-	flag.StringVar(&cfg.serverPort, "server_port", ":10000", "Port that server listens on")
+	flag.StringVar(&cfg.serverPort, "grpc-server-port", ":8080", "gRPC server port")
 	flag.StringVar(&cfg.dbType, "db_type", "mysql", "type of database")
 	flag.StringVar(&cfg.dbUser, "db_user", "root", "user name for database")
 	flag.StringVar(&cfg.dbPass, "db_pass", "emis", "user password for database")
@@ -130,7 +147,15 @@ func main() {
 	}
 	s := grpc.NewServer()
 	pb.RegisterSatelliteCommunicationServer(s, &satelliteCommunicationServer{db: mysqlDb})
-	if err := s.Serve(lis); err != nil {
-		log.Fatalf("failed to serve: %v", err)
+	log.Printf("Serving gRPC on localhost%s", cfg.serverPort)
+	go func() {
+		if err := s.Serve(lis); err != nil {
+			log.Fatalf("failed to serve: %v", err)
+		}
+	}()
+
+	if err := run(); err != nil {
+		ctxlog.WithFields(log.Fields{"status": "failed", "error": err}).Fatal("Error serving")
 	}
+
 }

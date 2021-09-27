@@ -4,16 +4,25 @@ option go_package="github.com/Simek13/satelliteApp/internal/satellitecommunicati
 
 package satellitecommunication;
 
+import "google/api/annotations.proto";
+
 service SatelliteCommunication {
 
-    rpc GetMeasurements(SatelliteFilter) returns (MeasurementResponse) {}
+    rpc GetMeasurements(SatelliteFilter) returns (MeasurementResponse) {
+        option (google.api.http) = {
+            get: "/measurements/{satId}"
+        };
+    }
 
-    rpc GetComputations(SatelliteFilter) returns (ComputationResponse) {}
+    rpc GetComputations(SatelliteFilter) returns (ComputationResponse) {
+        option (google.api.http) = {
+            get: "/computations/{satId}"
+        };
+    }
 }
 
-
 message SatelliteFilter {
-    string name = 1;
+    int32 satId = 1;
 }
 
 message Measurement {

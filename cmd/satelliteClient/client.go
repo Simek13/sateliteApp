@@ -8,7 +8,7 @@ import (
 	"github.com/Simek13/satelliteApp/internal/database"
 	"google.golang.org/grpc"
 
-	pb "github.com/Simek13/satelliteApp/internal/satellite_communication"
+	pb "github.com/Simek13/satelliteApp/pkg"
 	log "github.com/sirupsen/logrus"
 
 	"github.com/namsral/flag"
@@ -19,7 +19,7 @@ var cfg struct {
 }
 
 func printMeasurements(client pb.SatelliteCommunicationClient, sf *pb.SatelliteFilter) error {
-	fmt.Printf("Getting satellite measurements for satellite: %s \n", sf.Name)
+	fmt.Printf("Getting satellite measurements for satellite: %v \n", sf.GetSatId())
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	measurementResponse, err := client.GetMeasurements(ctx, sf)
@@ -38,7 +38,7 @@ func printMeasurements(client pb.SatelliteCommunicationClient, sf *pb.SatelliteF
 }
 
 func printComputations(client pb.SatelliteCommunicationClient, sf *pb.SatelliteFilter) error {
-	fmt.Printf("Getting satellite computations for satellite: %s \n", sf.Name)
+	fmt.Printf("Getting satellite computations for satellite: %v \n", sf.GetSatId())
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	computationResponse, err := client.GetComputations(ctx, sf)
@@ -69,12 +69,12 @@ func main() {
 	defer conn.Close()
 	client := pb.NewSatelliteCommunicationClient(conn)
 
-	err = printMeasurements(client, &pb.SatelliteFilter{Name: "30J14"})
+	err = printMeasurements(client, &pb.SatelliteFilter{SatId: 1})
 	if err != nil {
 		ctxlog.WithFields(log.Fields{"status": "failed", "error": err}).Fatal("Error printing measurements")
 	}
 
-	err = printComputations(client, &pb.SatelliteFilter{Name: "13A14"})
+	err = printComputations(client, &pb.SatelliteFilter{SatId: 2})
 	if err != nil {
 		ctxlog.WithFields(log.Fields{"status": "failed", "error": err}).Fatal("Error printing computations")
 	}

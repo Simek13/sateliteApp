@@ -1,5 +1,5 @@
 MIGRATIONS_FOLDER:="assets/migrations"
-PROTOBUF_FOLDER:="internal/satellite_communication/satellite_communication.proto"
+PROTOBUF_FOLDER:="internal/satellite_communication/*.proto"
 USER:= root
 PASSWORD:= emis
 MYSQLHOST:=localhost
@@ -9,6 +9,13 @@ GOOS:=windows
 PRODUCT:= satelliteApp
 REPO:=github.com/Simek13
 GOARCH:=amd64
+PROTO_GOOGLE_CMD=$(shell go list -f '{{ .Dir }}' -mod=mod -m github.com/grpc-ecosystem/grpc-gateway)/third_party/googleapis
+
+ifeq ($(GOOS),windows)
+PROTO_GOOGLE=$(subst \,/,$(PROTO_GOOGLE_CMD))
+else
+PROTO_GOOGLE=$(PROTO_GOOGLE_CMD)
+endif
 
 ################################################################################
 # BUILD
@@ -64,4 +71,22 @@ lint: lint-deps ## get linter for testing
 .PHONY: pb-gen
 pb-gen: PROTOBUF_BIN:="protoc"
 pb-gen: 
-	$(PROTOBUF_BIN) --go_out=. --go_opt=paths=source_relative --go-grpc_out=. --go-grpc_opt=paths=source_relative $(PROTOBUF_FOLDER)
+	$(PROTOBUF_BIN) --go_out=. --go_opt=paths=source_relative --go-grpc_out=. --go-grpc_opt=paths=source_relative --proto_path=$(PROTOBUF_FOLDER)
+
+.PHONY: proto-deps
+proto-deps: ## get the depedencies for generating gRPC libraries
+#go: module github.com/golang/protobuf is deprecated: Use the "google.golang.org/protobuf" module instead.
+	go get -d google.golang.org/protobuf/proto
+	go get -d github.com/grpc-ecosystem/grpc-gateway/v2/protoc-gen-grpc-gateway
+	go get -d github.com/grpc-ecosystem/grpc-gateway/v2/protoc-gen-openapiv2
+	go get -d github.com/grpc-ecosystem/grpc-gateway/protoc-gen-swagger
+	go get -d google.golang.org/protobuf/cmd/protoc-gen-go
+	go get -d google.golang.org/grpc/cmd/protoc-gen-go-grpc
+
+.PHONY: proto-go
+proto: proto-deps ## generate go gRPC libraries from the proto files
+	protoc -I $(PROTO_GOOGLE)   \
+	--go_out=./pkg --go_opt=paths=source_relative --go-grpc_out=./pkg --go-grpc_opt=paths=source_relative --proto_path=api/protobuf-spec satellite_communication.proto
+
+	protoc -I $(PROTO_GOOGLE)  \
+	--grpc-gateway_out=./pkg --grpc-gateway_opt=logtostderr=true --grpc-gateway_opt=paths=source_relative --proto_path=api/protobuf-spec satellite_communication.proto

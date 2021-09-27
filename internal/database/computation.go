@@ -3,8 +3,8 @@ package database
 import (
 	"fmt"
 
-	pb "github.com/Simek13/satelliteApp/internal/satellite_communication"
 	"github.com/Simek13/satelliteApp/internal/satellites"
+	pb "github.com/Simek13/satelliteApp/pkg"
 	"github.com/doug-martin/goqu/v9"
 	"github.com/pkg/errors"
 )
@@ -143,15 +143,10 @@ func (d *MySQLDatabase) AddComputations(sats map[string]satellites.Satellite) er
 	return nil
 }
 
-func (d *MySQLDatabase) GetComputations(satName string) ([]Computation, error) {
-	var satId int
+func (d *MySQLDatabase) GetComputations(satId int) ([]Computation, error) {
 	var sql string
 	var err error
-	if satName != "" {
-		satId, err = d.GetSatelliteId(satName)
-		if err != nil {
-			return nil, errors.Wrap(err, "Invalid satellite name")
-		}
+	if satId != 0 {
 		sql, _, err = d.From(computationTable).Where(goqu.C("idSat").Eq(satId)).ToSQL()
 	} else {
 		sql, _, err = d.From(computationTable).ToSQL()
